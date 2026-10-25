@@ -27,6 +27,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
   int? _weatherCode;
   String? _city;
   String? _locationKey;
+  DateTime? _weatherFetchedAt;
 
   @override
   void initState() {
@@ -98,11 +99,18 @@ class _HeaderMetricsState extends State<HeaderMetrics>
   Future<void> _fetchWeather() async {
     if (!mounted) return;
     final settings = context.read<SettingsService>();
-    final key = '${settings.weatherLatitude},${settings.weatherLongitude}';
+    final key =
+        '${settings.weatherCity}|${settings.weatherLatitude},${settings.weatherLongitude}';
     if (_locationKey != key) {
       _locationKey = key;
-      _temperature = null;
+      _weatherFetchedAt = null;
+      setState(() => _temperature = null);
     }
+    if (_temperature != null &&
+        _weatherFetchedAt != null &&
+        DateTime.now().difference(_weatherFetchedAt!) <
+            const Duration(minutes: 45))
+      return;
     try {
       final response = await http
           .get(
@@ -123,6 +131,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
           _temperature = (current['temperature_2m'] as num).round();
           _weatherCode = (current['weather_code'] as num).toInt();
           _city = settings.weatherCity;
+          _weatherFetchedAt = DateTime.now();
         });
       }
     } catch (_) {
@@ -152,7 +161,8 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     final online = context.select<NetworkService, bool>(
       (service) => service.hasInternetAccess,
     );
-    final key = '${settings.weatherLatitude},${settings.weatherLongitude}';
+    final key =
+        '${settings.weatherCity}|${settings.weatherLatitude},${settings.weatherLongitude}';
     if (key != _locationKey) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _fetchWeather());
     }
