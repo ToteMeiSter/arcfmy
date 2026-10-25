@@ -65,6 +65,10 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _dockKey = GlobalKey();
   late final _HeroBackdropBaker _heroBackdropBaker = _HeroBackdropBaker();
+  ImageProvider? _activeWallpaperSource;
+  ImageProvider? _activeDecodedWallpaper;
+  ImageProvider? _pendingWallpaperEviction;
+  Timer? _wallpaperEvictionTimer;
 
   @override
   void initState() {
@@ -75,6 +79,9 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _wallpaperEvictionTimer?.cancel();
+    _pendingWallpaperEviction?.evict();
+    _activeDecodedWallpaper?.evict();
     _scrollController.dispose();
     _heroBackdropBaker.dispose();
     super.dispose();
@@ -734,11 +741,23 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
       );
     }
     if (wallpaperService.wallpaper != null) {
+      final source = wallpaperService.wallpaper!;
+      if (_activeWallpaperSource != source) {
+        _wallpaperEvictionTimer?.cancel();
+        _pendingWallpaperEviction?.evict();
+        _pendingWallpaperEviction = _activeDecodedWallpaper;
+        _wallpaperEvictionTimer = Timer(const Duration(milliseconds: 1700), () {
+          _pendingWallpaperEviction?.evict();
+          _pendingWallpaperEviction = null;
+        });
+        _activeWallpaperSource = source;
+        _activeDecodedWallpaper = ResizeImage(
+          source,
+          height: min((screenSize.height * dpr).round(), 1080),
+        );
+      }
       return Image(
-        image: ResizeImage(
-          wallpaperService.wallpaper!,
-          height: (screenSize.height * dpr).round(),
-        ),
+        image: _activeDecodedWallpaper!,
         key: ValueKey("background_${wallpaperService.wallpaperRevision}"),
         fit: BoxFit.cover,
         height: screenSize.height,

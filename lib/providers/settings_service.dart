@@ -371,10 +371,10 @@ class SettingsService extends ChangeNotifier {
       unsplashAccessKey.isNotEmpty &&
       (_sharedPreferences.getBool("unsplash_slideshow_enabled") ?? false);
 
-  static const List<int> unsplashIntervalChoices = [5, 10, 30, 60];
+  static const List<int> unsplashIntervalChoices = [2, 5, 10, 30, 60];
 
   int get unsplashIntervalMinutes =>
-      _sharedPreferences.getInt("unsplash_interval_minutes") ?? 10;
+      _sharedPreferences.getInt("unsplash_interval_minutes") ?? 2;
 
   Future<void> setUnsplashIntervalMinutes(int minutes) async {
     await _sharedPreferences.setInt("unsplash_interval_minutes", minutes);
