@@ -29,6 +29,7 @@
 .packages
 .pub-cache/
 .pub/
+/android/.gradle-run.env
 /build/
 
 # Web related

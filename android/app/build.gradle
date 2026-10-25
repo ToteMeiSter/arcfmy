@@ -64,8 +64,8 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.omeda.arc"
-        compileSdk 36
+        applicationId "ru.mgdatv.arc"
+        compileSdk 35
         minSdkVersion flutter.minSdkVersion
         targetSdk 35
         versionCode flutterVersionCode.toInteger()
@@ -98,7 +98,6 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix '.debug'
             signingConfig signingConfigs.debug
         }
         release {
