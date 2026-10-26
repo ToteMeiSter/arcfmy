@@ -34,3 +34,28 @@ subprojects {
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
+
+// Keep Flutter's upstream output path and expose the APK to the build runner.
+tasks.register("exportGithubDebugApk", Copy) {
+    dependsOn(":app:packageGithubDebug")
+    def apkDir = file("${rootProject.buildDir}/app/outputs/apk/github/debug")
+    from(apkDir) { include("*.apk") }
+    into(file("${project.projectDir}/build/outputs/apk/github/debug"))
+    doFirst {
+        if (fileTree(apkDir).matching { include("*.apk") }.isEmpty()) {
+            throw new GradleException("No APK in ${apkDir}")
+        }
+    }
+}
+
+tasks.register("exportGithubReleaseApk", Copy) {
+    dependsOn(":app:packageGithubRelease")
+    def apkDir = file("${rootProject.buildDir}/app/outputs/apk/github/release")
+    from(apkDir) { include("*.apk") }
+    into(file("${project.projectDir}/build/outputs/apk/github/release"))
+    doFirst {
+        if (fileTree(apkDir).matching { include("*.apk") }.isEmpty()) {
+            throw new GradleException("No APK in ${apkDir}")
+        }
+    }
+}
