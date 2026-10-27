@@ -104,10 +104,12 @@ void main() {
             }
           ]));
       when(channel.applicationExists("uninstalled.app")).thenAnswer((_) => Future.value(false));
+      when(channel.applicationExists("disabled.app")).thenAnswer((_) => Future.value(false));
       when(channel.applicationExists("not.uninstalled.app")).thenAnswer((_) => Future.value(true));
       when(database.getApplications()).thenAnswer((_) => Future.value([
             fakeApp(packageName: "me.efesser.flauncher", name: "FLauncher", version: "1.0.0"),
             fakeApp(packageName: "uninstalled.app", name: "Uninstalled Application", version: "1.0.0"),
+            fakeApp(packageName: "disabled.app", name: "Disabled Application", version: "1.0.0"),
             fakeApp(packageName: "not.uninstalled.app", name: "Not Uninstalled Application", version: "1.0.0")
           ]));
       when(database.getCategories()).thenAnswer((_) => Future.value([]));
@@ -131,7 +133,7 @@ void main() {
           version: "1.0.0",
         )
       ]));
-      verify(database.deleteApps(["uninstalled.app"]));
+      verify(database.deleteApps(["uninstalled.app", "disabled.app"]));
     });
   });
 

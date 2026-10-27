@@ -64,6 +64,7 @@ class FLauncher extends StatefulWidget {
 class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   final GlobalKey<FocusAwareAppBarState> _appBarKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
+  int _homePressGeneration = 0;
   final GlobalKey _dockKey = GlobalKey();
   late final _HeroBackdropBaker _heroBackdropBaker = _HeroBackdropBaker();
   ImageProvider? _activeWallpaperSource;
@@ -304,18 +305,40 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
 
   Future<void> _onHomePressed() async {
     if (!mounted || !_scrollController.hasClients) return;
+    final generation = ++_homePressGeneration;
     await _animateScrollTo(_scrollController.position.minScrollExtent);
-    if (!mounted) return;
+    if (!mounted || generation != _homePressGeneration) return;
     final scrollPosition = _scrollController.position;
+    FocusNode? firstWatchNext;
+    FocusNode? firstApp;
+    Offset? watchNextOrigin;
+    Offset? appOrigin;
     for (final node in FocusScope.of(context).traversalDescendants) {
       final nodeContext = node.context;
       if (nodeContext == null || !node.canRequestFocus) continue;
-      if (Scrollable.maybeOf(nodeContext, axis: Axis.vertical)?.position ==
-          scrollPosition) {
-        node.requestFocus();
-        return;
+      if (Scrollable.maybeOf(nodeContext, axis: Axis.vertical)?.position !=
+          scrollPosition) continue;
+      final renderObject = nodeContext.findRenderObject();
+      if (renderObject is! RenderBox || !renderObject.attached) continue;
+      final origin = renderObject.localToGlobal(Offset.zero);
+      if (nodeContext.findAncestorWidgetOfExactType<WatchNextRow>() != null) {
+        if (watchNextOrigin == null ||
+            origin.dy < watchNextOrigin.dy ||
+            (origin.dy == watchNextOrigin.dy && origin.dx < watchNextOrigin.dx)) {
+          firstWatchNext = node;
+          watchNextOrigin = origin;
+        }
+      }
+      if (nodeContext.findAncestorWidgetOfExactType<AppCard>() != null) {
+        if (appOrigin == null ||
+            origin.dy < appOrigin.dy ||
+            (origin.dy == appOrigin.dy && origin.dx < appOrigin.dx)) {
+          firstApp = node;
+          appOrigin = origin;
+        }
       }
     }
+    (firstWatchNext ?? firstApp)?.requestFocus();
   }
 
   void _onWatchNextFocused() {
