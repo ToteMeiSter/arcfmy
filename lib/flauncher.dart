@@ -24,6 +24,7 @@ import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
 import 'package:flauncher/actions.dart';
 import 'package:flauncher/custom_traversal_policy.dart';
+import 'package:flauncher/flauncher_channel.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/launcher_state.dart';
 import 'package:flauncher/providers/settings_service.dart';
@@ -74,10 +75,12 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    FLauncherChannel.setHomePressedHandler(_onHomePressed);
   }
 
   @override
   void dispose() {
+    FLauncherChannel.setHomePressedHandler(null);
     WidgetsBinding.instance.removeObserver(this);
     _wallpaperEvictionTimer?.cancel();
     _pendingWallpaperEviction?.evict();
@@ -297,6 +300,22 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
 
   void _onHomeSectionFocused() {
     _setAppGridFocused(false);
+  }
+
+  Future<void> _onHomePressed() async {
+    if (!mounted || !_scrollController.hasClients) return;
+    await _animateScrollTo(_scrollController.position.minScrollExtent);
+    if (!mounted) return;
+    final scrollPosition = _scrollController.position;
+    for (final node in FocusScope.of(context).traversalDescendants) {
+      final nodeContext = node.context;
+      if (nodeContext == null || !node.canRequestFocus) continue;
+      if (Scrollable.maybeOf(nodeContext, axis: Axis.vertical)?.position ==
+          scrollPosition) {
+        node.requestFocus();
+        return;
+      }
+    }
   }
 
   void _onWatchNextFocused() {
