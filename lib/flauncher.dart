@@ -299,6 +299,13 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
     _setAppGridFocused(false);
   }
 
+  void _onWatchNextFocused() {
+    _onHomeSectionFocused();
+    if (_scrollController.hasClients) {
+      _animateScrollTo(_scrollController.position.minScrollExtent);
+    }
+  }
+
   Widget _tvOSLayout(
     BuildContext context,
     AppsService appsService, {
@@ -349,7 +356,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                 child: WatchNextRow(
                   isFirstSection: favoriteApps.isEmpty,
                   isAboveDock: true,
-                  onItemFocused: _onHomeSectionFocused,
+                  onItemFocused: _onWatchNextFocused,
                 ),
               ),
             ),
@@ -431,6 +438,10 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
 
       final bool isFirstSection = !firstCategoryFound;
       if (isFirstSection) firstCategoryFound = true;
+      // The first built section scrolls through onFirstSectionFocused (dock
+      // layout); otherwise every focused card reveals itself.
+      final handlesOwnScroll =
+          !firstBuiltSectionFound && onFirstSectionFocused != null;
       final onAppFocused = !firstBuiltSectionFound
           ? () =>
                 _onAppGridFocused(onFirstSectionFocused: onFirstSectionFocused)
@@ -527,7 +538,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                     child: AppCard(
                       category: category,
                       application: filteredApps[index],
-                      autofocus: index == 0,
+                      autofocus: isFirstSection && index == 0,
                       handleUpNavigationToSettings:
                           isFirstSection && index < category.columnsCount,
                       enforceAspectRatio: false,
@@ -535,8 +546,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                           ? onAppFocused
                           : null,
                       ensureVisibleOnFocus:
-                          onAppFocused == null ||
-                          index >= category.columnsCount,
+                          !handlesOwnScroll || index >= category.columnsCount,
                       onlyScrollWhenNearBottom: true,
                       onMove: (direction) => _onGridMove(
                         context,
@@ -563,10 +573,12 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
 
   Future<void> _scrollDockToTop() async {
     final targetOffset = _dockTopScrollOffset();
-    if (targetOffset == null) {
-      return;
+    if (targetOffset != null) {
+      await _animateScrollTo(targetOffset);
     }
+  }
 
+  Future<void> _animateScrollTo(double targetOffset) async {
     final position = _scrollController.position;
     if ((targetOffset - position.pixels).abs() < 16) {
       return;

@@ -66,7 +66,7 @@ class CategoryRow extends StatelessWidget
                 child: AppCard(
                   category: category,
                   application: applications[index],
-                  autofocus: index == 0,
+                  autofocus: isFirstSection && index == 0,
                   handleUpNavigationToSettings: isFirstSection,
                   onFocused: onAppFocused,
                   onMove: (direction) => _onMove(context, direction, index),
