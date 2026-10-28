@@ -304,7 +304,12 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   }
 
   Future<void> _onHomePressed() async {
-    if (!mounted || !_scrollController.hasClients) return;
+    if (!mounted) return;
+    // HOME closes everything opened above the home page (SettingsPanel, nested
+    // dialogs). They sit in the root navigator; SettingsPanel's own Navigator
+    // goes away with its dialog route.
+    Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    if (!_scrollController.hasClients) return;
     final generation = ++_homePressGeneration;
     await _animateScrollTo(_scrollController.position.minScrollExtent);
     if (!mounted || generation != _homePressGeneration) return;
