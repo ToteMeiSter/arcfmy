@@ -82,8 +82,12 @@ void main() {
         ),
       ]));
       verify(database.deleteApps([]));
-      verify(database.insertCategory(argThat(predicate<CategoriesCompanion>((c) => c.name.value == "All Apps"))));
-      verify(database.insertCategory(argThat(predicate<CategoriesCompanion>((c) => c.name.value == "Favorites"))));
+      final insertedCategories = verify(database.insertCategory(captureAny))
+          .captured.cast<CategoriesCompanion>();
+      expect(
+        insertedCategories.map((category) => category.name.value),
+        ['Избранное', 'Приложения', 'Проектор', 'Служебное'],
+      );
     });
 
     test("with newly installed, uninstalled and existing apps", () async {
