@@ -234,5 +234,12 @@
   "brightnessSlotDay": "9:00–15:00",
   "brightnessSlotAfternoon": "15:00–18:00",
   "brightnessSlotEvening": "18:00–22:00",
-  "brightnessSlotNight": "22:00–6:00"
+  "brightnessSlotNight": "22:00–6:00",
+  "showWeather": "Hiện thời tiết",
+  "weatherLocation": "Thành phố thời tiết",
+  "showCpuLoad": "Hiện mức tải CPU",
+  "weatherCityName": "Tên thành phố",
+  "weatherSearch": "Tìm",
+  "weatherNoResults": "Không tìm thấy thành phố",
+  "weatherSearchFailed": "Tìm kiếm thất bại. Kiểm tra kết nối mạng."
 }

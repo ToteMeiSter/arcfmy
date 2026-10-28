@@ -771,4 +771,25 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get brightnessSlotNight => '22:00–6:00';
+
+  @override
+  String get showWeather => 'Hiện thời tiết';
+
+  @override
+  String get weatherLocation => 'Thành phố thời tiết';
+
+  @override
+  String get showCpuLoad => 'Hiện mức tải CPU';
+
+  @override
+  String get weatherCityName => 'Tên thành phố';
+
+  @override
+  String get weatherSearch => 'Tìm';
+
+  @override
+  String get weatherNoResults => 'Không tìm thấy thành phố';
+
+  @override
+  String get weatherSearchFailed => 'Tìm kiếm thất bại. Kiểm tra kết nối mạng.';
 }

@@ -20,6 +20,11 @@ void main() {
       when(settingsService.showTimeInStatusBar).thenReturn(true);
       when(settingsService.showWifiWidgetInStatusBar).thenReturn(false);
       when(settingsService.showNetworkIndicatorInStatusBar).thenReturn(true);
+      when(settingsService.showWeatherInStatusBar).thenReturn(true);
+      when(settingsService.showCpuInStatusBar).thenReturn(true);
+      when(settingsService.weatherCity).thenReturn('Казань');
+      when(settingsService.setShowWeatherInStatusBar(any)).thenAnswer((_) async {});
+      when(settingsService.setShowCpuInStatusBar(any)).thenAnswer((_) async {});
       when(settingsService.setAutoHideAppBarEnabled(any)).thenAnswer((_) async {});
       when(settingsService.setHideStatusBarInGrid(any)).thenAnswer((_) async {});
     });
@@ -51,6 +56,24 @@ void main() {
       await tester.pumpAndSettle();
 
       verify(settingsService.setHideStatusBarInGrid(true)).called(1);
+    });
+
+    testWidgets('weather and CPU rows use l10n names and toggle', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Show weather'), findsOneWidget);
+      expect(find.text('Weather location'), findsOneWidget);
+      expect(find.text('Show CPU load'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Show CPU load'));
+      await tester.tap(find.text('Show CPU load'));
+      await tester.pumpAndSettle();
+      verify(settingsService.setShowCpuInStatusBar(false)).called(1);
+
+      await tester.tap(find.text('Show weather'));
+      await tester.pumpAndSettle();
+      verify(settingsService.setShowWeatherInStatusBar(false)).called(1);
     });
   });
 }

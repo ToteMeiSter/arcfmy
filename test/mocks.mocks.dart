@@ -1716,6 +1716,63 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
       ) as bool);
 
   @override
+  String get weatherCity => (super.noSuchMethod(
+        Invocation.getter(#weatherCity),
+        returnValue: '',
+        returnValueForMissingStub: '',
+      ) as String);
+
+  @override
+  double get weatherLatitude => (super.noSuchMethod(
+        Invocation.getter(#weatherLatitude),
+        returnValue: 0.0,
+        returnValueForMissingStub: 0.0,
+      ) as double);
+
+  @override
+  double get weatherLongitude => (super.noSuchMethod(
+        Invocation.getter(#weatherLongitude),
+        returnValue: 0.0,
+        returnValueForMissingStub: 0.0,
+      ) as double);
+
+  @override
+  bool get showWeatherInStatusBar => (super.noSuchMethod(
+        Invocation.getter(#showWeatherInStatusBar),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  bool get showCpuInStatusBar => (super.noSuchMethod(
+        Invocation.getter(#showCpuInStatusBar),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  _i9.Future<void> setShowWeatherInStatusBar(bool? show) => (super.noSuchMethod(
+        Invocation.method(#setShowWeatherInStatusBar, [show]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setShowCpuInStatusBar(bool? show) => (super.noSuchMethod(
+        Invocation.method(#setShowCpuInStatusBar, [show]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setWeatherLocation(String? city, double? latitude, double? longitude) =>
+      (super.noSuchMethod(
+        Invocation.method(#setWeatherLocation, [city, latitude, longitude]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
   bool get showNetworkIndicatorInStatusBar => (super.noSuchMethod(
         Invocation.getter(#showNetworkIndicatorInStatusBar),
         returnValue: false,
