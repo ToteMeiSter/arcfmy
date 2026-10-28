@@ -71,7 +71,7 @@ class CategoryCleanRow extends StatelessWidget
                       child: AppCard(
                         category: category,
                         application: applications[index],
-                        autofocus: index == 0,
+                        autofocus: isFirstSection && index == 0,
                         handleUpNavigationToSettings: isFirstSection,
                         scrollAlignment: scrollAlignment,
                         enforceAspectRatio: false,

@@ -17,6 +17,7 @@
  */
 
 import 'package:flauncher/l10n/app_localizations.dart';
+import 'package:flauncher/flauncher_channel.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/widgets/rounded_switch_list_tile.dart';
 import 'package:flauncher/widgets/settings/focusable_settings_tile.dart';
@@ -35,38 +36,82 @@ class UnsplashSlideshowPanelPage extends StatelessWidget {
       builder: (context, settings, _) {
         final hasKey = settings.unsplashAccessKey.isNotEmpty;
         Future<void> editKey() async {
-          final key = await _askText(context, localizations.unsplashAccessKey, settings.unsplashAccessKey,
-              help: localizations.unsplashAccessKeyHelp);
+          final key = await _askText(
+            context,
+            localizations.unsplashAccessKey,
+            settings.unsplashAccessKey,
+            help: localizations.unsplashAccessKeyHelp,
+          );
           if (key != null) await settings.setUnsplashAccessKey(key);
         }
 
         return Column(
           children: [
-            SettingsPageHeader(title: localizations.unsplashSlideshow),
+            SettingsPageHeader(title: 'Слайд-шоу'),
             RoundedSwitchListTile(
               autofocus: true,
+              title: const Text('Локальные фото'),
+              secondary: const Icon(Icons.folder_outlined),
+              value: settings.localSlideshowEnabled,
+              onChanged: (value) async {
+                if (value &&
+                    !await FLauncherChannel().checkMediaPermissions()) {
+                  await FLauncherChannel().requestMediaPermissions();
+                }
+                await settings.setLocalSlideshowEnabled(value);
+              },
+            ),
+            FocusableSettingsTile(
+              leading: const Icon(Icons.folder_open),
+              title: const Text('Папка с фото'),
+              trailing: Text(settings.localSlideshowDirectory),
+              onPressed: () async {
+                final path = await _askText(
+                  context,
+                  'Папка с фото',
+                  settings.localSlideshowDirectory,
+                );
+                if (path != null && path.trim().isNotEmpty)
+                  await settings.setLocalSlideshowDirectory(path);
+              },
+            ),
+            RoundedSwitchListTile(
               title: Text(localizations.unsplashEnable),
               secondary: const Icon(Icons.slideshow),
               value: settings.unsplashSlideshowEnabled,
               // Without a key the switch asks for one instead of enabling a slideshow that cannot run.
-              onChanged: (value) => hasKey ? settings.setUnsplashSlideshowEnabled(value) : editKey(),
+              onChanged: (value) => hasKey
+                  ? settings.setUnsplashSlideshowEnabled(value)
+                  : editKey(),
             ),
             FocusableSettingsTile(
               leading: const Icon(Icons.key),
               title: Text(localizations.unsplashAccessKey),
-              trailing: Text(hasKey ? "••••${_tail(settings.unsplashAccessKey)}" : localizations.unsplashNotSet),
+              trailing: Text(
+                hasKey
+                    ? "••••${_tail(settings.unsplashAccessKey)}"
+                    : localizations.unsplashNotSet,
+              ),
               onPressed: editKey,
             ),
             FocusableSettingsTile(
               leading: const Icon(Icons.timer_outlined),
-              title: Text(localizations.unsplashInterval),
-              trailing: Text(localizations.unsplashIntervalMinutes(settings.unsplashIntervalMinutes)),
-              onPressed: () => settings.setUnsplashIntervalMinutes(_nextInterval(settings.unsplashIntervalMinutes)),
+              title: const Text('Интервал слайд-шоу'),
+              trailing: Text(
+                localizations.unsplashIntervalMinutes(
+                  settings.unsplashIntervalMinutes,
+                ),
+              ),
+              onPressed: () => settings.setUnsplashIntervalMinutes(
+                _nextInterval(settings.unsplashIntervalMinutes),
+              ),
             ),
             FocusableSettingsTile(
               leading: const Icon(Icons.category_outlined),
               title: Text(localizations.slideshowCategories),
-              onPressed: () => Navigator.of(context).pushNamed(SlideshowSourcesPanelPage.routeName),
+              onPressed: () => Navigator.of(
+                context,
+              ).pushNamed(SlideshowSourcesPanelPage.routeName),
             ),
           ],
         );
@@ -74,8 +119,8 @@ class UnsplashSlideshowPanelPage extends StatelessWidget {
     );
   }
 
-
-  static String _tail(String key) => key.length <= 4 ? "" : key.substring(key.length - 4);
+  static String _tail(String key) =>
+      key.length <= 4 ? "" : key.substring(key.length - 4);
 
   /// Cycles through [SettingsService.unsplashIntervalChoices] on each OK press.
   static int _nextInterval(int current) {
@@ -84,22 +129,30 @@ class UnsplashSlideshowPanelPage extends StatelessWidget {
     return choices[(index + 1) % choices.length];
   }
 
-  Future<String?> _askText(BuildContext context, String title, String initialValue, {String? help}) =>
-      showDialog<String>(
-        context: context,
-        builder: (context) => SimpleDialog(
-          insetPadding: const EdgeInsets.only(bottom: 120),
-          contentPadding: const EdgeInsets.all(24),
-          title: Text(title),
-          children: [
-            if (help != null) Padding(padding: const EdgeInsets.only(bottom: 16), child: Text(help)),
-            TextFormField(
-              autofocus: true,
-              initialValue: initialValue,
-              keyboardType: TextInputType.text,
-              onFieldSubmitted: (value) => Navigator.of(context).pop(value),
-            ),
-          ],
+  Future<String?> _askText(
+    BuildContext context,
+    String title,
+    String initialValue, {
+    String? help,
+  }) => showDialog<String>(
+    context: context,
+    builder: (context) => SimpleDialog(
+      insetPadding: const EdgeInsets.only(bottom: 120),
+      contentPadding: const EdgeInsets.all(24),
+      title: Text(title),
+      children: [
+        if (help != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(help),
+          ),
+        TextFormField(
+          autofocus: true,
+          initialValue: initialValue,
+          keyboardType: TextInputType.text,
+          onFieldSubmitted: (value) => Navigator.of(context).pop(value),
         ),
-      );
+      ],
+    ),
+  );
 }

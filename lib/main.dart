@@ -39,36 +39,58 @@ Future<void> main() async {
   initializeDateFormatting();
 
   final sharedPreferences = await SharedPreferences.getInstance();
+  if (!(sharedPreferences.getBool('mgdatv_layout_seeded') ?? false)) {
+    await sharedPreferences.setString('accent_color', '00BFA5');
+    await sharedPreferences.setBool('show_category_titles', true);
+    await sharedPreferences.setBool('dock_dark_background', true);
+    await sharedPreferences.setBool('background_blur_disabled', true);
+    await sharedPreferences.setBool('show_watch_next_section', true);
+    await sharedPreferences.setBool('local_slideshow_enabled', true);
+    await sharedPreferences.setBool('mgdatv_layout_seeded', true);
+  }
   final fLauncherChannel = FLauncherChannel();
   final fLauncherDatabase = FLauncherDatabase(connect());
 
-  runApp(MultiProvider(
+  runApp(
+    MultiProvider(
       providers: [
         ChangeNotifierProvider(
-            create: (_) => SettingsService(sharedPreferences),
-            lazy: false),
-        ChangeNotifierProvider(create: (_) => AppsService(fLauncherChannel, fLauncherDatabase)),
+          create: (_) => SettingsService(sharedPreferences),
+          lazy: false,
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AppsService(fLauncherChannel, fLauncherDatabase),
+        ),
         ChangeNotifierProvider(create: (_) => LauncherState()),
         ChangeNotifierProvider(create: (_) => NetworkService(fLauncherChannel)),
         ChangeNotifierProvider(
-            create: (context) {
-              SettingsService settingsService = Provider.of(context, listen: false);
-              return WallpaperService(settingsService);
-            }
+          create: (context) {
+            SettingsService settingsService = Provider.of(
+              context,
+              listen: false,
+            );
+            return WallpaperService(settingsService);
+          },
         ),
         ChangeNotifierProvider(
-            create: (_) => BrightnessService(sharedPreferences),
-            lazy: false
+          create: (_) => BrightnessService(sharedPreferences),
+          lazy: false,
         ),
         ChangeNotifierProvider(
-            create: (context) {
-              final settingsService = Provider.of<SettingsService>(context, listen: false);
-              return WatchNextService(fLauncherChannel, settingsService: settingsService);
-            },
-            lazy: false
+          create: (context) {
+            final settingsService = Provider.of<SettingsService>(
+              context,
+              listen: false,
+            );
+            return WatchNextService(
+              fLauncherChannel,
+              settingsService: settingsService,
+            );
+          },
+          lazy: false,
         ),
       ],
-      child: FLauncherApp()
-    )
+      child: FLauncherApp(),
+    ),
   );
 }

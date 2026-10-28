@@ -24,6 +24,7 @@ import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
 import 'package:flauncher/actions.dart';
 import 'package:flauncher/custom_traversal_policy.dart';
+import 'package:flauncher/flauncher_channel.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/launcher_state.dart';
 import 'package:flauncher/providers/settings_service.dart';
@@ -63,18 +64,28 @@ class FLauncher extends StatefulWidget {
 class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   final GlobalKey<FocusAwareAppBarState> _appBarKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
+  int _homePressGeneration = 0;
   final GlobalKey _dockKey = GlobalKey();
   late final _HeroBackdropBaker _heroBackdropBaker = _HeroBackdropBaker();
+  ImageProvider? _activeWallpaperSource;
+  ImageProvider? _activeDecodedWallpaper;
+  ImageProvider? _pendingWallpaperEviction;
+  Timer? _wallpaperEvictionTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    FLauncherChannel.setHomePressedHandler(_onHomePressed);
   }
 
   @override
   void dispose() {
+    FLauncherChannel.setHomePressedHandler(null);
     WidgetsBinding.instance.removeObserver(this);
+    _wallpaperEvictionTimer?.cancel();
+    _pendingWallpaperEviction?.evict();
+    _activeDecodedWallpaper?.evict();
     _scrollController.dispose();
     _heroBackdropBaker.dispose();
     super.dispose();
@@ -103,10 +114,18 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
               builder: (_, wallpaperService, settingsService, watchNextService, __) {
                 final author = wallpaperService.slideshowAuthor;
                 final redditCredit = wallpaperService.redditWallpaperCredit;
-                final isBigPicture = settingsService.showWatchNextSection && settingsService.watchNextBigPictureMode;
-                final activeItem = isBigPicture ? watchNextService.activeHeroItem : null;
-                final heroUri = isBigPicture ? watchNextService.getPosterUriForItem(activeItem) : null;
-                final heroBytes = isBigPicture ? watchNextService.getCachedPoster(heroUri) : null;
+                final isBigPicture =
+                    settingsService.showWatchNextSection &&
+                    settingsService.watchNextBigPictureMode;
+                final activeItem = isBigPicture
+                    ? watchNextService.activeHeroItem
+                    : null;
+                final heroUri = isBigPicture
+                    ? watchNextService.getPosterUriForItem(activeItem)
+                    : null;
+                final heroBytes = isBigPicture
+                    ? watchNextService.getCachedPoster(heroUri)
+                    : null;
                 final hasHeroBackdrop = isBigPicture && heroBytes != null;
                 final screenSize = MediaQuery.sizeOf(context);
                 final dpr = MediaQuery.devicePixelRatioOf(context);
@@ -121,7 +140,9 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 1500),
                       child: hasHeroBackdrop
-                          ? const SizedBox.shrink(key: ValueKey('occluded_wallpaper'))
+                          ? const SizedBox.shrink(
+                              key: ValueKey('occluded_wallpaper'),
+                            )
                           : _wallpaper(context, wallpaperService),
                     ),
                     // Hero items crossfade once baked simultaneously with dock blur.
@@ -133,13 +154,16 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                               child: ListenableBuilder(
                                 listenable: _heroBackdropBaker,
                                 builder: (context, _) {
-                                  final heroImage = _heroBackdropBaker.textures?.hero;
+                                  final heroImage =
+                                      _heroBackdropBaker.textures?.hero;
                                   return AnimatedSwitcher(
                                     duration: _kHeroFadeDuration,
                                     switchInCurve: Curves.easeOutCubic,
                                     switchOutCurve: Curves.easeInCubic,
                                     child: heroImage == null
-                                        ? const SizedBox.expand(key: ValueKey('empty_hero'))
+                                        ? const SizedBox.expand(
+                                            key: ValueKey('empty_hero'),
+                                          )
                                         : RawImage(
                                             key: ObjectKey(heroImage),
                                             image: heroImage,
@@ -161,10 +185,11 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                           type: MaterialType.transparency,
                           child: Text(
                             redditCredit,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.white70,
-                              shadows: const [Shadow(blurRadius: 4)],
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Colors.white70,
+                                  shadows: const [Shadow(blurRadius: 4)],
+                                ),
                           ),
                         ),
                       )
@@ -176,11 +201,14 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                         child: Material(
                           type: MaterialType.transparency,
                           child: Text(
-                            AppLocalizations.of(context)!.unsplashPhotoCredit(author),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.white70,
-                              shadows: const [Shadow(blurRadius: 4)],
-                            ),
+                            AppLocalizations.of(
+                              context,
+                            )!.unsplashPhotoCredit(author),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Colors.white70,
+                                  shadows: const [Shadow(blurRadius: 4)],
+                                ),
                           ),
                         ),
                       ),
@@ -189,7 +217,12 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
               },
             ),
           ),
-          Selector3<LauncherState, SettingsService, WallpaperService, (bool, bool, bool)>(
+          Selector3<
+            LauncherState,
+            SettingsService,
+            WallpaperService,
+            (bool, bool, bool)
+          >(
             selector: (_, launcherState, settings, wallpaperService) => (
               launcherState.appGridFocused,
               settings.backgroundBlurDisabled,
@@ -201,7 +234,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                 listenable: _heroBackdropBaker,
                 builder: (context, _) {
                   final gridBlur = _heroBackdropBaker.textures?.gridBlur;
-                  if (hasVideoWallpaper && gridBlur == null) {
+                  if (blurDisabled || (hasVideoWallpaper && gridBlur == null)) {
                     return const SizedBox.shrink();
                   }
                   return Positioned.fill(
@@ -223,22 +256,28 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
             },
           ),
           Consumer<LauncherState>(
-            builder:
-                (_, state, child) => Visibility(
-                  replacement: const Center(child: AlternativeLauncherView()),
-                  visible: state.launcherVisible,
-                  child: child!,
-                ),
+            builder: (_, state, child) => Visibility(
+              replacement: const Center(child: AlternativeLauncherView()),
+              visible: state.launcherVisible,
+              child: child!,
+            ),
             child: Scaffold(
               backgroundColor: Colors.transparent,
               appBar: FocusAwareAppBar(key: _appBarKey),
               // (initialized (data.$1), layoutVersion (data.$2), showAppNamesBelowIcons (data.$3))
               body: Selector2<AppsService, SettingsService, (bool, int, bool)>(
-                selector: (_, appsService, settingsService) =>
-                    (appsService.initialized, appsService.layoutVersion, settingsService.showAppNamesBelowIcons),
+                selector: (_, appsService, settingsService) => (
+                  appsService.initialized,
+                  appsService.layoutVersion,
+                  settingsService.showAppNamesBelowIcons,
+                ),
                 builder: (context, data, _) {
                   if (data.$1) {
-                    return _tvOSLayout(context, context.read<AppsService>(), showAppNames: data.$3);
+                    return _tvOSLayout(
+                      context,
+                      context.read<AppsService>(),
+                      showAppNames: data.$3,
+                    );
                   } else {
                     return _emptyState(context);
                   }
@@ -264,22 +303,79 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
     _setAppGridFocused(false);
   }
 
-  Widget _tvOSLayout(BuildContext context, AppsService appsService, {required bool showAppNames}) {
-    final favoritesCategory = appsService.categories.firstWhereOrNull((c) => c.name == 'Favorites');
+  Future<void> _onHomePressed() async {
+    if (!mounted || !_scrollController.hasClients) return;
+    final generation = ++_homePressGeneration;
+    await _animateScrollTo(_scrollController.position.minScrollExtent);
+    if (!mounted || generation != _homePressGeneration) return;
+    final scrollPosition = _scrollController.position;
+    FocusNode? firstWatchNext;
+    FocusNode? firstApp;
+    Offset? watchNextOrigin;
+    Offset? appOrigin;
+    for (final node in FocusScope.of(context).traversalDescendants) {
+      final nodeContext = node.context;
+      if (nodeContext == null || !node.canRequestFocus) continue;
+      if (Scrollable.maybeOf(nodeContext, axis: Axis.vertical)?.position !=
+          scrollPosition) continue;
+      final renderObject = nodeContext.findRenderObject();
+      if (renderObject is! RenderBox || !renderObject.attached) continue;
+      final origin = renderObject.localToGlobal(Offset.zero);
+      if (nodeContext.findAncestorWidgetOfExactType<WatchNextRow>() != null) {
+        if (watchNextOrigin == null ||
+            origin.dy < watchNextOrigin.dy ||
+            (origin.dy == watchNextOrigin.dy && origin.dx < watchNextOrigin.dx)) {
+          firstWatchNext = node;
+          watchNextOrigin = origin;
+        }
+      }
+      if (nodeContext.findAncestorWidgetOfExactType<AppCard>() != null) {
+        if (appOrigin == null ||
+            origin.dy < appOrigin.dy ||
+            (origin.dy == appOrigin.dy && origin.dx < appOrigin.dx)) {
+          firstApp = node;
+          appOrigin = origin;
+        }
+      }
+    }
+    (firstWatchNext ?? firstApp)?.requestFocus();
+  }
+
+  void _onWatchNextFocused() {
+    _onHomeSectionFocused();
+    if (_scrollController.hasClients) {
+      _animateScrollTo(_scrollController.position.minScrollExtent);
+    }
+  }
+
+  Widget _tvOSLayout(
+    BuildContext context,
+    AppsService appsService, {
+    required bool showAppNames,
+  }) {
+    final favoritesCategory = appsService.categories.firstWhereOrNull(
+      (c) => c.name == 'Favorites',
+    );
     final favoriteApps = favoritesCategory?.applications ?? const [];
 
-    final otherSections =
-        appsService.launcherSections.where((section) {
-          if (section is Category && section.name == 'Favorites') return false;
-          return true;
-        }).toList();
+    final otherSections = appsService.launcherSections.where((section) {
+      if (section is Category && section.name == 'Favorites') return false;
+      return true;
+    }).toList();
 
-    final showWatchNextSection = context.select<SettingsService, bool>((s) => s.showWatchNextSection);
-    final watchNextBigPicture = context.select<SettingsService, bool>((s) => s.watchNextBigPictureMode);
-    final watchNextVisible = context.select<WatchNextService, bool>((s) => s.hasVisibleSection);
+    final showWatchNextSection = context.select<SettingsService, bool>(
+      (s) => s.showWatchNextSection,
+    );
+    final watchNextBigPicture = context.select<SettingsService, bool>(
+      (s) => s.watchNextBigPictureMode,
+    );
+    final watchNextVisible = context.select<WatchNextService, bool>(
+      (s) => s.hasVisibleSection,
+    );
     final reserveWatchNextSpace = showWatchNextSection && watchNextVisible;
 
-    if (favoriteApps.isEmpty && otherSections.isEmpty) return _emptyState(context);
+    if (favoriteApps.isEmpty && otherSections.isEmpty)
+      return _emptyState(context);
 
     final watchNextSpace = watchNextBigPicture ? 385 : 410;
 
@@ -300,9 +396,9 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
             SliverToBoxAdapter(
               child: RepaintBoundary(
                 child: WatchNextRow(
-                  isFirstSection: false,
+                  isFirstSection: favoriteApps.isEmpty,
                   isAboveDock: true,
-                  onItemFocused: _onHomeSectionFocused,
+                  onItemFocused: _onWatchNextFocused,
                 ),
               ),
             ),
@@ -325,11 +421,23 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
         ],
         ..._buildSectionSlivers(
           otherSections,
-          firstCategoryAlreadyFound: favoriteApps.isNotEmpty,
+          // Watch Next is the first focusable section when the localized dock
+          // is a regular category (for example «Избранное»).
+          firstCategoryAlreadyFound:
+              favoriteApps.isNotEmpty || reserveWatchNextSpace,
           showAppNames: showAppNames,
-          onFirstSectionFocused: favoriteApps.isNotEmpty ? _scrollDockToTop : null,
+          onFirstSectionFocused: favoriteApps.isNotEmpty
+              ? _scrollDockToTop
+              : null,
         ),
-        SliverToBoxAdapter(child: SizedBox(height: _bottomScrollPadding(context, hasDock: favoriteApps.isNotEmpty))),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: _bottomScrollPadding(
+              context,
+              hasDock: favoriteApps.isNotEmpty,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -338,7 +446,9 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
     if (!hasDock) {
       return 64;
     }
-    return MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight;
+    return MediaQuery.of(context).size.height -
+        MediaQuery.of(context).padding.top -
+        kToolbarHeight;
   }
 
   List<Widget> _buildSectionSlivers(
@@ -355,7 +465,12 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
       final Key sectionKey = Key(section.id.toString());
 
       if (section is LauncherSpacer) {
-        slivers.add(SliverToBoxAdapter(key: sectionKey, child: SizedBox(height: section.height.toDouble())));
+        slivers.add(
+          SliverToBoxAdapter(
+            key: sectionKey,
+            child: SizedBox(height: section.height.toDouble()),
+          ),
+        );
         continue;
       }
 
@@ -365,8 +480,13 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
 
       final bool isFirstSection = !firstCategoryFound;
       if (isFirstSection) firstCategoryFound = true;
+      // The first built section scrolls through onFirstSectionFocused (dock
+      // layout); otherwise every focused card reveals itself.
+      final handlesOwnScroll =
+          !firstBuiltSectionFound && onFirstSectionFocused != null;
       final onAppFocused = !firstBuiltSectionFound
-          ? () => _onAppGridFocused(onFirstSectionFocused: onFirstSectionFocused)
+          ? () =>
+                _onAppGridFocused(onFirstSectionFocused: onFirstSectionFocused)
           : () => _onAppGridFocused();
       firstBuiltSectionFound = true;
 
@@ -381,7 +501,13 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                   child: Text(
                     category.name,
                     style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                      shadows: const [Shadow(color: Colors.black54, offset: Offset(1, 1), blurRadius: 8)],
+                      shadows: const [
+                        Shadow(
+                          color: Colors.black54,
+                          offset: Offset(1, 1),
+                          blurRadius: 8,
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -415,7 +541,9 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
           );
           break;
         case CategoryType.grid:
-          final gridContentWidth = MediaQuery.sizeOf(context).width - 2 * kLauncherSectionHorizontalPadding;
+          final gridContentWidth =
+              MediaQuery.sizeOf(context).width -
+              2 * kLauncherSectionHorizontalPadding;
           final gridAspectRatio = showAppNames
               ? appCardGridAspectRatio(gridContentWidth, category.columnsCount)
               : kAppCardAspectRatio;
@@ -438,7 +566,9 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                   childCount: filteredApps.length,
                   findChildIndexCallback: (Key key) {
                     final valueKey = key as ValueKey<String>;
-                    final index = filteredApps.indexWhere((app) => app.packageName == valueKey.value);
+                    final index = filteredApps.indexWhere(
+                      (app) => app.packageName == valueKey.value,
+                    );
                     return index >= 0 ? index : null;
                   },
                   (context, index) => Padding(
@@ -450,14 +580,26 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                     child: AppCard(
                       category: category,
                       application: filteredApps[index],
-                      autofocus: index == 0,
-                      handleUpNavigationToSettings: isFirstSection && index < category.columnsCount,
+                      autofocus: isFirstSection && index == 0,
+                      handleUpNavigationToSettings:
+                          isFirstSection && index < category.columnsCount,
                       enforceAspectRatio: false,
-                      onFocused: index < category.columnsCount ? onAppFocused : null,
-                      ensureVisibleOnFocus: onAppFocused == null || index >= category.columnsCount,
+                      onFocused: index < category.columnsCount
+                          ? onAppFocused
+                          : null,
+                      ensureVisibleOnFocus:
+                          !handlesOwnScroll || index >= category.columnsCount,
                       onlyScrollWhenNearBottom: true,
-                      onMove: (direction) => _onGridMove(context, category, index, direction, filteredApps),
-                      onMoveEnd: () => context.read<AppsService>().saveApplicationOrderInCategory(category),
+                      onMove: (direction) => _onGridMove(
+                        context,
+                        category,
+                        index,
+                        direction,
+                        filteredApps,
+                      ),
+                      onMoveEnd: () => context
+                          .read<AppsService>()
+                          .saveApplicationOrderInCategory(category),
                     ),
                   ),
                 ),
@@ -473,10 +615,12 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
 
   Future<void> _scrollDockToTop() async {
     final targetOffset = _dockTopScrollOffset();
-    if (targetOffset == null) {
-      return;
+    if (targetOffset != null) {
+      await _animateScrollTo(targetOffset);
     }
+  }
 
+  Future<void> _animateScrollTo(double targetOffset) async {
     final position = _scrollController.position;
     if ((targetOffset - position.pixels).abs() < 16) {
       return;
@@ -498,7 +642,10 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
 
     final viewport = RenderAbstractViewport.of(renderObject);
     final position = _scrollController.position;
-    return viewport.getOffsetToReveal(renderObject, 0).offset.clamp(position.minScrollExtent, position.maxScrollExtent);
+    return viewport
+        .getOffsetToReveal(renderObject, 0)
+        .offset
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
   }
 
   // TO DO : refractor duplicate _onMove code
@@ -510,7 +657,8 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
     List<App> filteredApps,
   ) {
     final currentRow = (index / category.columnsCount).floor();
-    final totalRows = ((filteredApps.length - 1) / category.columnsCount).floor();
+    final totalRows = ((filteredApps.length - 1) / category.columnsCount)
+        .floor();
 
     int? newIndex;
     switch (direction) {
@@ -521,7 +669,11 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
         if (index < filteredApps.length - 1) newIndex = index + 1;
         break;
       case AxisDirection.down:
-        if (currentRow < totalRows) newIndex = min(index + category.columnsCount, filteredApps.length - 1);
+        if (currentRow < totalRows)
+          newIndex = min(
+            index + category.columnsCount,
+            filteredApps.length - 1,
+          );
         break;
       case AxisDirection.left:
         if (index > 0) newIndex = index - 1;
@@ -532,7 +684,9 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
       final appsService = context.read<AppsService>();
       final movingApp = filteredApps[index];
       final realOldIndex = category.applications.indexOf(movingApp);
-      final realNewIndex = category.applications.indexOf(filteredApps[newIndex]);
+      final realNewIndex = category.applications.indexOf(
+        filteredApps[newIndex],
+      );
       if (realOldIndex >= 0 && realNewIndex >= 0) {
         appsService.reorderApplication(category, realOldIndex, realNewIndex);
         appsService.setPendingReorderFocus(movingApp.packageName, category.id);
@@ -547,22 +701,35 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
     AppsService appsService, {
     required bool handleUpNavigationToSettings,
   }) {
-    final backdropDisabled = context.select<SettingsService, bool>((s) => s.dockBackdropFilterDisabled);
-    final darkBackground = context.select<SettingsService, bool>((s) => s.dockDarkBackground);
-    final shadowEnabled = context.select<SettingsService, bool>((s) => s.dockShadowEnabled);
-    final isBigPicture = context.select<SettingsService, bool>((s) => s.showWatchNextSection && s.watchNextBigPictureMode);
+    final backdropDisabled = context.select<SettingsService, bool>(
+      (s) => s.dockBackdropFilterDisabled,
+    );
+    final darkBackground = context.select<SettingsService, bool>(
+      (s) => s.dockDarkBackground,
+    );
+    final shadowEnabled = context.select<SettingsService, bool>(
+      (s) => s.dockShadowEnabled,
+    );
+    final isBigPicture = context.select<SettingsService, bool>(
+      (s) => s.showWatchNextSection && s.watchNextBigPictureMode,
+    );
 
     const dockBorderRadius = 24.0;
     final borderRadius = BorderRadius.circular(dockBorderRadius);
 
     final content = CustomPaint(
-      foregroundPainter: const DockContourPainter(radius: dockBorderRadius, strokeWidth: 1.0),
+      foregroundPainter: const DockContourPainter(
+        radius: dockBorderRadius,
+        strokeWidth: 1.0,
+      ),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 5),
         decoration: BoxDecoration(
           color: darkBackground
               ? Colors.black.withValues(alpha: 0.35)
-              : (isBigPicture ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.1)),
+              : (isBigPicture
+                    ? Colors.white.withValues(alpha: 0.16)
+                    : Colors.white.withValues(alpha: 0.1)),
           borderRadius: borderRadius,
         ),
         child: CategoryCleanRow(
@@ -580,7 +747,13 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
         decoration: BoxDecoration(
           borderRadius: borderRadius,
           boxShadow: shadowEnabled
-              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 20, spreadRadius: 2)]
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ]
               : null,
         ),
         child: ClipRRect(
@@ -614,21 +787,41 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
         width: screenSize.width,
         height: screenSize.height,
         child: WallpaperVideoBackground(
-          key: ValueKey("background_video_${wallpaperService.wallpaperRevision}"),
+          key: ValueKey(
+            "background_video_${wallpaperService.wallpaperRevision}",
+          ),
           file: videoFile,
         ),
       );
     }
     if (wallpaperService.wallpaper != null) {
+      final source = wallpaperService.wallpaper!;
+      if (_activeWallpaperSource != source) {
+        _wallpaperEvictionTimer?.cancel();
+        _pendingWallpaperEviction?.evict();
+        _pendingWallpaperEviction = _activeDecodedWallpaper;
+        _wallpaperEvictionTimer = Timer(const Duration(milliseconds: 1700), () {
+          _pendingWallpaperEviction?.evict();
+          _pendingWallpaperEviction = null;
+        });
+        _activeWallpaperSource = source;
+        _activeDecodedWallpaper = ResizeImage(
+          source,
+          height: min((screenSize.height * dpr).round(), 1080),
+        );
+      }
       return Image(
-        image: ResizeImage(wallpaperService.wallpaper!, height: (screenSize.height * dpr).round()),
+        image: _activeDecodedWallpaper!,
         key: ValueKey("background_${wallpaperService.wallpaperRevision}"),
         fit: BoxFit.cover,
         height: screenSize.height,
         width: screenSize.width,
       );
     } else {
-      return _CachedGradientBackground(key: const Key("background"), gradient: wallpaperService.gradient.gradient);
+      return _CachedGradientBackground(
+        key: const Key("background"),
+        gradient: wallpaperService.gradient.gradient,
+      );
     }
   }
 
@@ -640,7 +833,10 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
-          Text(localizations.loading, style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            localizations.loading,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
         ],
       ),
     );
@@ -659,7 +855,8 @@ class _CachedGradientBackground extends StatefulWidget {
   const _CachedGradientBackground({super.key, required this.gradient});
 
   @override
-  State<_CachedGradientBackground> createState() => _CachedGradientBackgroundState();
+  State<_CachedGradientBackground> createState() =>
+      _CachedGradientBackgroundState();
 }
 
 class _CachedGradientBackgroundState extends State<_CachedGradientBackground> {
@@ -681,7 +878,9 @@ class _CachedGradientBackgroundState extends State<_CachedGradientBackground> {
     _rendering = true;
     final recorder = ui.PictureRecorder();
     final rect = Offset.zero & size;
-    Canvas(recorder).drawRect(rect, Paint()..shader = widget.gradient.createShader(rect));
+    Canvas(
+      recorder,
+    ).drawRect(rect, Paint()..shader = widget.gradient.createShader(rect));
     final picture = recorder.endRecording();
     final image = picture.toImageSync(size.width.round(), size.height.round());
     picture.dispose();
@@ -703,20 +902,30 @@ class _CachedGradientBackgroundState extends State<_CachedGradientBackground> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
-        final needsRender = size != _renderedSize || widget.gradient != _renderedGradient;
+        final needsRender =
+            size != _renderedSize || widget.gradient != _renderedGradient;
         if (needsRender && size.width > 0 && size.height > 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && (size != _renderedSize || widget.gradient != _renderedGradient)) {
+            if (mounted &&
+                (size != _renderedSize ||
+                    widget.gradient != _renderedGradient)) {
               _render(size);
             }
           });
         }
         final image = _image;
         if (image != null && !needsRender) {
-          return RawImage(image: image, width: size.width, height: size.height, fit: BoxFit.fill);
+          return RawImage(
+            image: image,
+            width: size.width,
+            height: size.height,
+            fit: BoxFit.fill,
+          );
         }
         // First frame (and while re-rendering): paint the gradient live once to avoid a flash.
-        return DecoratedBox(decoration: BoxDecoration(gradient: widget.gradient));
+        return DecoratedBox(
+          decoration: BoxDecoration(gradient: widget.gradient),
+        );
       },
     );
   }
@@ -759,8 +968,14 @@ class _HeroBackdropBaker extends ChangeNotifier {
 
   _HeroBackdropTextures? get textures => _current;
 
-  void update({required Uint8List? bytes, required Size size, required double dpr}) {
-    if (identical(bytes, _requestedBytes) && size == _requestedSize && dpr == _requestedDpr) {
+  void update({
+    required Uint8List? bytes,
+    required Size size,
+    required double dpr,
+  }) {
+    if (identical(bytes, _requestedBytes) &&
+        size == _requestedSize &&
+        dpr == _requestedDpr) {
       return;
     }
     _requestedBytes = bytes;
@@ -810,12 +1025,18 @@ class _HeroBackdropBaker extends ChangeNotifier {
         final size = _requestedSize;
         final dpr = _requestedDpr;
 
-        final pxSize = Size((size.width * dpr).roundToDouble(), (size.height * dpr).roundToDouble());
+        final pxSize = Size(
+          (size.width * dpr).roundToDouble(),
+          (size.height * dpr).roundToDouble(),
+        );
         final codec = await ui.instantiateImageCodecWithSize(
           await ui.ImmutableBuffer.fromUint8List(bytes),
           getTargetSize: (w, h) {
             final scale = min(1.0, max(pxSize.width / w, pxSize.height / h));
-            return ui.TargetImageSize(width: (w * scale).round(), height: (h * scale).round());
+            return ui.TargetImageSize(
+              width: (w * scale).round(),
+              height: (h * scale).round(),
+            );
           },
         );
         final source = (await codec.getNextFrame()).image;
@@ -829,10 +1050,18 @@ class _HeroBackdropBaker extends ChangeNotifier {
         // 1. Full-screen hero background with cinematic scrim
         final heroRecorder = ui.PictureRecorder();
         final heroCanvas = Canvas(heroRecorder);
-        paintImage(canvas: heroCanvas, rect: Offset.zero & pxSize, image: source, fit: BoxFit.cover);
+        paintImage(
+          canvas: heroCanvas,
+          rect: Offset.zero & pxSize,
+          image: source,
+          fit: BoxFit.cover,
+        );
         const _CinematicScrimPainter().paint(heroCanvas, pxSize);
         final heroPicture = heroRecorder.endRecording();
-        final heroImage = heroPicture.toImageSync(pxSize.width.toInt(), pxSize.height.toInt());
+        final heroImage = heroPicture.toImageSync(
+          pxSize.width.toInt(),
+          pxSize.height.toInt(),
+        );
         heroPicture.dispose();
 
         // 2. Dock blur snapshot (960x540, sigma 5)
@@ -840,7 +1069,12 @@ class _HeroBackdropBaker extends ChangeNotifier {
         final double targetHeight = min(size.height * dpr, 540.0);
         final pxWidth = targetWidth.round();
         final pxHeight = targetHeight.round();
-        final blurRect = Rect.fromLTWH(0, 0, pxWidth.toDouble(), pxHeight.toDouble());
+        final blurRect = Rect.fromLTWH(
+          0,
+          0,
+          pxWidth.toDouble(),
+          pxHeight.toDouble(),
+        );
         final double scaleFactor = pxWidth / size.width;
 
         final dockRecorder = ui.PictureRecorder();
@@ -852,7 +1086,13 @@ class _HeroBackdropBaker extends ChangeNotifier {
             tileMode: TileMode.clamp,
           );
         dockCanvas.saveLayer(blurRect, dockPaint);
-        paintImage(canvas: dockCanvas, rect: blurRect, image: source, fit: BoxFit.cover, filterQuality: FilterQuality.low);
+        paintImage(
+          canvas: dockCanvas,
+          rect: blurRect,
+          image: source,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.low,
+        );
         dockCanvas.restore();
         final dockPicture = dockRecorder.endRecording();
         final dockImage = dockPicture.toImageSync(pxWidth, pxHeight);
@@ -868,7 +1108,13 @@ class _HeroBackdropBaker extends ChangeNotifier {
             tileMode: TileMode.clamp,
           );
         gridCanvas.saveLayer(blurRect, gridPaint);
-        paintImage(canvas: gridCanvas, rect: blurRect, image: source, fit: BoxFit.cover, filterQuality: FilterQuality.low);
+        paintImage(
+          canvas: gridCanvas,
+          rect: blurRect,
+          image: source,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.low,
+        );
         gridCanvas.restore();
         final gridPicture = gridRecorder.endRecording();
         final gridImage = gridPicture.toImageSync(pxWidth, pxHeight);
@@ -955,4 +1201,3 @@ class _CinematicScrimPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

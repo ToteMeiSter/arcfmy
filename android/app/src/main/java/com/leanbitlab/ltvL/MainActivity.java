@@ -52,6 +52,7 @@ import android.app.usage.NetworkStats;
 import android.app.usage.NetworkStatsManager;
 import android.app.AppOpsManager;
 import android.os.RemoteException;
+import android.view.KeyEvent;
 
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
@@ -73,6 +74,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class MainActivity extends FlutterActivity {
+    private static final int KEYCODE_PROJECTOR_SOURCE = 2001;
+    private static final String SOURCE_SHORTCUT_PACKAGE = "ru.mgdatv.shortcuts.source";
     private final String METHOD_CHANNEL = "me.efesser.flauncher/method";
     private final String APPS_EVENT_CHANNEL = "me.efesser.flauncher/event_apps";
     private final String NETWORK_EVENT_CHANNEL = "me.efesser.flauncher/event_network";
@@ -80,13 +83,42 @@ public class MainActivity extends FlutterActivity {
     private static final int REQUEST_CODE_READ_TV_LISTINGS = 1001;
     private static final String COLUMN_ASPECT_RATIO = "aspect_ratio";
 
+    private MethodChannel methodChannel;
+
+    // singleTask: a repeated HOME press with the launcher on screen arrives here, not in onResume.
+    @Override
+    protected void onNewIntent(@NonNull Intent intent) {
+        super.onNewIntent(intent);
+        if (Intent.ACTION_MAIN.equals(intent.getAction())
+                && intent.hasCategory(Intent.CATEGORY_HOME)
+                && methodChannel != null) {
+            methodChannel.invokeMethod("homePressed", null);
+        }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KEYCODE_PROJECTOR_SOURCE) {
+            if (event.getRepeatCount() == 0) launchApp(SOURCE_SHORTCUT_PACKAGE);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KEYCODE_PROJECTOR_SOURCE) return true;
+        return super.onKeyUp(keyCode, event);
+    }
+
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
 
         BinaryMessenger messenger = flutterEngine.getDartExecutor().getBinaryMessenger();
 
-        new MethodChannel(messenger, METHOD_CHANNEL).setMethodCallHandler((call, result) -> {
+        methodChannel = new MethodChannel(messenger, METHOD_CHANNEL);
+        methodChannel.setMethodCallHandler((call, result) -> {
             switch (call.method) {
                 case "getApplications" -> result.success(getApplications());
                 case "getApplicationBanner" -> result.success(getApplicationBanner(call.arguments()));
@@ -355,8 +387,8 @@ public class MainActivity extends FlutterActivity {
         }
 
         try {
-            getPackageManager().getApplicationInfo(packageName, flags);
-            return true;
+            // Disabled packages remain installed but cannot supply launcher rows.
+            return getPackageManager().getApplicationInfo(packageName, flags).enabled;
         } catch (PackageManager.NameNotFoundException ignored) {
             return false;
         }
