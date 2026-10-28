@@ -767,4 +767,25 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get brightnessSlotNight => '10 PM - 6 AM';
+
+  @override
+  String get showWeather => 'Show weather';
+
+  @override
+  String get weatherLocation => 'Weather location';
+
+  @override
+  String get showCpuLoad => 'Show CPU load';
+
+  @override
+  String get weatherCityName => 'City name';
+
+  @override
+  String get weatherSearch => 'Search';
+
+  @override
+  String get weatherNoResults => 'No cities found';
+
+  @override
+  String get weatherSearchFailed => 'Search failed. Check the network connection.';
 }

@@ -353,5 +353,12 @@
           "type": "String"
         }
       }
-    }
+    },
+    "showWeather": "Show weather",
+    "weatherLocation": "Weather location",
+    "showCpuLoad": "Show CPU load",
+    "weatherCityName": "City name",
+    "weatherSearch": "Search",
+    "weatherNoResults": "No cities found",
+    "weatherSearchFailed": "Search failed. Check the network connection."
 }

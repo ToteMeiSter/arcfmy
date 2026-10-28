@@ -19,6 +19,8 @@
 import 'package:flauncher/widgets/rounded_switch_list_tile.dart';
 import 'package:flauncher/widgets/settings/settings_theme.dart';
 import 'package:flauncher/widgets/settings/focusable_settings_tile.dart';
+import 'package:flauncher/widgets/settings/weather_city_dialog.dart';
+import 'package:flauncher/widgets/weather_geocoding.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flauncher/l10n/app_localizations.dart';
@@ -76,11 +78,25 @@ class StatusBarPanelPage extends StatelessWidget {
                 title: Text(localizations.time),
                 secondary: Icon(Icons.watch_later_outlined),
               ),
+              RoundedSwitchListTile(
+                value: settingsService.showWeatherInStatusBar,
+                onChanged: (value) =>
+                    settingsService.setShowWeatherInStatusBar(value),
+                title: Text(localizations.showWeather),
+                secondary: const Icon(Icons.wb_sunny_outlined),
+              ),
               FocusableSettingsTile(
-                leading: const Icon(Icons.cloud_outlined),
-                title: const Text('Город погоды'),
+                leading: const Icon(Icons.location_city_outlined),
+                title: Text(localizations.weatherLocation),
                 trailing: Text(settingsService.weatherCity),
                 onPressed: () => _editWeather(context, settingsService),
+              ),
+              RoundedSwitchListTile(
+                value: settingsService.showCpuInStatusBar,
+                onChanged: (value) =>
+                    settingsService.setShowCpuInStatusBar(value),
+                title: Text(localizations.showCpuLoad),
+                secondary: const Icon(Icons.memory_outlined),
               ),
               RoundedSwitchListTile(
                 value: settingsService.showWifiWidgetInStatusBar,
@@ -107,60 +123,16 @@ class StatusBarPanelPage extends StatelessWidget {
     BuildContext context,
     SettingsService settings,
   ) async {
-    final city = TextEditingController(text: settings.weatherCity);
-    final latitude = TextEditingController(
-      text: settings.weatherLatitude.toString(),
-    );
-    final longitude = TextEditingController(
-      text: settings.weatherLongitude.toString(),
-    );
-    final result = await showDialog<bool>(
+    final city = await showDialog<WeatherCity>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Погода: город и координаты'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: city,
-              decoration: const InputDecoration(labelText: 'Город'),
-            ),
-            TextField(
-              controller: latitude,
-              decoration: const InputDecoration(labelText: 'Широта'),
-            ),
-            TextField(
-              controller: longitude,
-              decoration: const InputDecoration(labelText: 'Долгота'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Сохранить'),
-          ),
-        ],
-      ),
+      builder: (_) => const WeatherCityDialog(),
     );
-    final lat = double.tryParse(latitude.text.replaceAll(',', '.'));
-    final lon = double.tryParse(longitude.text.replaceAll(',', '.'));
-    if (result == true &&
-        city.text.trim().isNotEmpty &&
-        lat != null &&
-        lon != null &&
-        lat >= -90 &&
-        lat <= 90 &&
-        lon >= -180 &&
-        lon <= 180) {
-      await settings.setWeatherLocation(city.text, lat, lon);
+    if (city != null) {
+      await settings.setWeatherLocation(
+        city.name,
+        city.latitude,
+        city.longitude,
+      );
     }
-    city.dispose();
-    latitude.dispose();
-    longitude.dispose();
   }
 }

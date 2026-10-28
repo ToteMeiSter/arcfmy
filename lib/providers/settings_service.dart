@@ -56,6 +56,12 @@ const String _localSlideshowDirectory = "local_slideshow_directory";
 const String _weatherLatitude = "weather_latitude";
 const String _weatherLongitude = "weather_longitude";
 const String _weatherCity = "weather_city";
+const String _showWeatherInStatusBar = "show_weather_in_status_bar";
+const String _showCpuInStatusBar = "show_cpu_in_status_bar";
+
+/// Default of the header weather and CPU switches. On in the mgd fork: the
+/// projector layout is already seeded with both widgets.
+const bool _headerMetricsDefault = true;
 
 const List<int> WATCH_NEXT_MAX_ITEMS_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 50];
 const String _dockDarkBackground = "dock_dark_background";
@@ -440,6 +446,16 @@ class SettingsService extends ChangeNotifier {
       _sharedPreferences.getDouble(_weatherLatitude) ?? 55.79;
   double get weatherLongitude =>
       _sharedPreferences.getDouble(_weatherLongitude) ?? 49.12;
+
+  bool get showWeatherInStatusBar =>
+      _sharedPreferences.getBool(_showWeatherInStatusBar) ?? _headerMetricsDefault;
+  bool get showCpuInStatusBar =>
+      _sharedPreferences.getBool(_showCpuInStatusBar) ?? _headerMetricsDefault;
+
+  Future<void> setShowWeatherInStatusBar(bool show) =>
+      set(_showWeatherInStatusBar, show);
+  Future<void> setShowCpuInStatusBar(bool show) =>
+      set(_showCpuInStatusBar, show);
 
   Future<void> setWeatherLocation(
     String city,

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
 import 'app_localizations_es.dart';
+import 'app_localizations_ru.dart';
 import 'app_localizations_tr.dart';
 import 'app_localizations_vi.dart';
 
@@ -98,6 +99,7 @@ abstract class AppLocalizations {
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('es'),
+    Locale('ru'),
     Locale('tr'),
     Locale('vi'),
   ];
@@ -1511,6 +1513,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'10 PM - 6 AM'**
   String get brightnessSlotNight;
+
+  /// No description provided for @showWeather.
+  ///
+  /// In en, this message translates to:
+  /// **'Show weather'**
+  String get showWeather;
+
+  /// No description provided for @weatherLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Weather location'**
+  String get weatherLocation;
+
+  /// No description provided for @showCpuLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Show CPU load'**
+  String get showCpuLoad;
+
+  /// No description provided for @weatherCityName.
+  ///
+  /// In en, this message translates to:
+  /// **'City name'**
+  String get weatherCityName;
+
+  /// No description provided for @weatherSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get weatherSearch;
+
+  /// No description provided for @weatherNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No cities found'**
+  String get weatherNoResults;
+
+  /// No description provided for @weatherSearchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Search failed. Check the network connection.'**
+  String get weatherSearchFailed;
 }
 
 class _AppLocalizationsDelegate
@@ -1524,7 +1568,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'es', 'tr', 'vi'].contains(locale.languageCode);
+      <String>['en', 'es', 'ru', 'tr', 'vi'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -1537,6 +1581,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsEn();
     case 'es':
       return AppLocalizationsEs();
+    case 'ru':
+      return AppLocalizationsRu();
     case 'tr':
       return AppLocalizationsTr();
     case 'vi':

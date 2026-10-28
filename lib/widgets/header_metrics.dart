@@ -8,9 +8,28 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
-/// Reads only while the launcher is in the foreground. No background service.
+/// First line of /proc/stat, or null when it cannot be read.
+typedef CpuStatReader = Future<String?> Function();
+
+Future<String?> readProcStat() async {
+  try {
+    return (await File('/proc/stat').readAsLines()).first;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Reads only while the launcher is in the foreground and the widget is
+/// switched on in the settings. No background service.
 class HeaderMetrics extends StatefulWidget {
-  const HeaderMetrics({super.key});
+  const HeaderMetrics({
+    super.key,
+    this.readCpuStat = readProcStat,
+    this.httpClient,
+  });
+
+  final CpuStatReader readCpuStat;
+  final http.Client? httpClient;
 
   @override
   State<HeaderMetrics> createState() => _HeaderMetricsState();
@@ -20,6 +39,8 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     with WidgetsBindingObserver {
   Timer? _cpuTimer;
   Timer? _weatherTimer;
+  bool _foreground = true;
+  bool _cpuUnavailable = false;
   int? _lastTotal;
   int? _lastIdle;
   int? _cpuPercent;
@@ -28,53 +49,74 @@ class _HeaderMetricsState extends State<HeaderMetrics>
   String? _city;
   String? _locationKey;
   DateTime? _weatherFetchedAt;
+  String? _fetchingKey;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncTimers());
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _start();
-    } else {
-      _stop();
+    _foreground = state == AppLifecycleState.resumed;
+    _syncTimers();
+  }
+
+  bool get _wantCpu =>
+      _foreground &&
+      !_cpuUnavailable &&
+      context.read<SettingsService>().showCpuInStatusBar;
+
+  bool get _wantWeather =>
+      _foreground && context.read<SettingsService>().showWeatherInStatusBar;
+
+  /// Starts or stops each timer so that it runs only for an enabled widget.
+  void _syncTimers() {
+    if (!mounted) return;
+    if (_wantCpu && _cpuTimer == null) {
+      _readCpu();
+      _cpuTimer = Timer.periodic(const Duration(seconds: 3), (_) => _readCpu());
+    } else if (!_wantCpu && _cpuTimer != null) {
+      _stopCpu();
+    }
+    if (_wantWeather && _weatherTimer == null) {
+      _fetchWeather();
+      _weatherTimer = Timer.periodic(
+        const Duration(minutes: 45),
+        (_) => _fetchWeather(),
+      );
+    } else if (!_wantWeather && _weatherTimer != null) {
+      _weatherTimer?.cancel();
+      _weatherTimer = null;
     }
   }
 
-  void _start() {
-    if (!mounted || _cpuTimer != null) return;
-    _readCpu();
-    _fetchWeather();
-    _cpuTimer = Timer.periodic(const Duration(seconds: 3), (_) => _readCpu());
-    _weatherTimer = Timer.periodic(
-      const Duration(minutes: 45),
-      (_) => _fetchWeather(),
-    );
-  }
-
-  void _stop() {
+  void _stopCpu() {
     _cpuTimer?.cancel();
-    _weatherTimer?.cancel();
     _cpuTimer = null;
-    _weatherTimer = null;
     _lastTotal = null;
     _lastIdle = null;
   }
 
+  void _stop() {
+    _stopCpu();
+    _weatherTimer?.cancel();
+    _weatherTimer = null;
+  }
+
   Future<void> _readCpu() async {
     try {
-      final line = (await File('/proc/stat').readAsLines()).first;
+      final line = await widget.readCpuStat();
+      if (line == null) throw const FormatException('/proc/stat unreadable');
       final fields = line
           .trim()
           .split(RegExp(r'\s+'))
           .skip(1)
           .map(int.parse)
           .toList();
-      if (fields.length < 5) return;
+      if (fields.length < 5) throw const FormatException('/proc/stat short');
       final total = fields.fold<int>(0, (sum, value) => sum + value);
       final idle = fields[3] + fields[4];
       final deltaTotal = total - (_lastTotal ?? total);
@@ -90,9 +132,10 @@ class _HeaderMetricsState extends State<HeaderMetrics>
         );
       }
     } catch (_) {
+      // Unreadable (SELinux) or not a number: hide the widget, never show 0.
+      _cpuUnavailable = true;
+      _stopCpu();
       if (mounted && _cpuPercent != null) setState(() => _cpuPercent = null);
-      _cpuTimer?.cancel();
-      _cpuTimer = null;
     }
   }
 
@@ -106,20 +149,20 @@ class _HeaderMetricsState extends State<HeaderMetrics>
       _weatherFetchedAt = null;
       setState(() => _temperature = null);
     }
+    if (_fetchingKey == key) return;
     if (_temperature != null &&
         _weatherFetchedAt != null &&
         DateTime.now().difference(_weatherFetchedAt!) <
             const Duration(minutes: 45))
       return;
+    _fetchingKey = key;
     try {
-      final response = await http
-          .get(
-            Uri.https('api.open-meteo.com', '/v1/forecast', {
-              'latitude': settings.weatherLatitude.toString(),
-              'longitude': settings.weatherLongitude.toString(),
-              'current': 'temperature_2m,weather_code',
-            }),
-          )
+      final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
+        'latitude': settings.weatherLatitude.toString(),
+        'longitude': settings.weatherLongitude.toString(),
+        'current': 'temperature_2m,weather_code',
+      });
+      final response = await (widget.httpClient?.get(uri) ?? http.get(uri))
           .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200)
         throw const HttpException('Weather unavailable');
@@ -136,6 +179,8 @@ class _HeaderMetricsState extends State<HeaderMetrics>
       }
     } catch (_) {
       if (mounted) setState(() => _temperature = null);
+    } finally {
+      if (_fetchingKey == key) _fetchingKey = null;
     }
   }
 
@@ -163,7 +208,12 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     );
     final key =
         '${settings.weatherCity}|${settings.weatherLatitude},${settings.weatherLongitude}';
-    if (key != _locationKey) {
+    final wantCpu = settings.showCpuInStatusBar && !_cpuUnavailable;
+    if (wantCpu != (_cpuTimer != null) ||
+        settings.showWeatherInStatusBar != (_weatherTimer != null)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncTimers());
+    }
+    if (settings.showWeatherInStatusBar && key != _locationKey) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _fetchWeather());
     }
     const style = TextStyle(
@@ -174,13 +224,13 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (online && _temperature != null) ...[
+        if (settings.showWeatherInStatusBar && online && _temperature != null) ...[
           Icon(_weatherIcon, color: Colors.white, size: 20),
           const SizedBox(width: 4),
           Text('${_city ?? settings.weatherCity} $_temperature°', style: style),
           const SizedBox(width: 16),
         ],
-        if (_cpuPercent != null) ...[
+        if (settings.showCpuInStatusBar && _cpuPercent != null) ...[
           Text('CPU $_cpuPercent%', style: style),
           const SizedBox(width: 16),
         ],
