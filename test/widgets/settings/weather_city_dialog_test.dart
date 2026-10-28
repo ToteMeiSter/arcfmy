@@ -2,6 +2,7 @@ import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/widgets/settings/weather_city_dialog.dart';
 import 'package:flauncher/widgets/weather_geocoding.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -53,6 +54,78 @@ void main() {
     await tester.tap(find.text('Казань, Татарстан, Россия'));
     await tester.pumpAndSettle();
     expect(find.byType(WeatherCityDialog), findsNothing);
+  });
+
+  testWidgets('D-pad: down from the field focuses the list, OK picks a city', (
+    tester,
+  ) async {
+    const kazan = WeatherCity(
+      name: 'Kazan',
+      region: 'Tatarstan',
+      country: 'Russia',
+      latitude: 55.79,
+      longitude: 49.12,
+    );
+    const moscow = WeatherCity(
+      name: 'Moscow',
+      region: 'Moscow',
+      country: 'Russia',
+      latitude: 55.75,
+      longitude: 37.62,
+    );
+    WeatherCity? picked;
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => picked = await showDialog<WeatherCity>(
+              context: context,
+              builder: (_) =>
+                  WeatherCityDialog(search: (q, l) async => [kazan, moscow]),
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'k');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    FocusNode? primary() => FocusManager.instance.primaryFocus;
+    String? focused() => primary()?.debugLabel;
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(focused(), 'weatherCity0');
+    final tile = tester.widget<ListTile>(
+      find.byWidgetPredicate((w) => w is ListTile && w.focusNode == primary()),
+    );
+    expect(tile.tileColor, isNotNull, reason: 'focused row is highlighted');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(focused(), 'weatherCity1');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(
+      primary()?.context?.findAncestorWidgetOfExactType<EditableText>(),
+      isNotNull,
+      reason: 'up from the first row returns to the field',
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.byType(WeatherCityDialog), findsNothing);
+    expect(picked, kazan);
   });
 
   testWidgets('no results and network error show a message', (tester) async {
