@@ -22,6 +22,7 @@ class WeatherCityDialog extends StatefulWidget {
 class _WeatherCityDialogState extends State<WeatherCityDialog> {
   final _controller = TextEditingController();
   final _fieldFocus = FocusNode();
+  final _searchFocus = FocusNode(debugLabel: 'weatherCitySearch');
   // One node per result: the remote has no Tab key, so D-pad moves focus
   // between the field and the list explicitly.
   List<FocusNode> _itemNodes = const [];
@@ -33,6 +34,7 @@ class _WeatherCityDialogState extends State<WeatherCityDialog> {
   void dispose() {
     _controller.dispose();
     _fieldFocus.dispose();
+    _searchFocus.dispose();
     _disposeItemNodes();
     super.dispose();
   }
@@ -61,6 +63,23 @@ class _WeatherCityDialogState extends State<WeatherCityDialog> {
     return KeyEventResult.handled;
   }
 
+  // The remote has no Enter key: OK (select) starts the search, and down
+  // always leaves the field (first result, or the search button when empty).
+  KeyEventResult _onFieldKey(FocusNode _, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        (event.logicalKey == LogicalKeyboardKey.select ||
+            event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+      _search();
+      return KeyEventResult.handled;
+    }
+    return _moveFocus(
+      event,
+      null,
+      _itemNodes.isEmpty ? _searchFocus : _itemNodes.first,
+    );
+  }
+
   void _setResults(List<WeatherCity> found) {
     _disposeItemNodes();
     _results = found;
@@ -73,6 +92,9 @@ class _WeatherCityDialogState extends State<WeatherCityDialog> {
   Future<void> _search() async {
     final query = _controller.text.trim();
     if (query.isEmpty || _loading) return;
+    // The on-screen keyboard keeps D-pad keys and shrinks the dialog so the
+    // results stay hidden; the field keeps focus, only the keyboard goes away.
+    SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
     final localizations = AppLocalizations.of(context)!;
     final language = Localizations.localeOf(context).languageCode;
     setState(() {
@@ -99,6 +121,7 @@ class _WeatherCityDialogState extends State<WeatherCityDialog> {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
+    final primary = Theme.of(context).colorScheme.primary;
     return AlertDialog(
       title: Text(localizations.weatherLocation),
       content: SizedBox(
@@ -107,11 +130,7 @@ class _WeatherCityDialogState extends State<WeatherCityDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Focus(
-              onKeyEvent: (_, event) => _moveFocus(
-                event,
-                null,
-                _itemNodes.isEmpty ? null : _itemNodes.first,
-              ),
+              onKeyEvent: _onFieldKey,
               child: TextField(
                 controller: _controller,
                 focusNode: _fieldFocus,
@@ -144,7 +163,9 @@ class _WeatherCityDialogState extends State<WeatherCityDialog> {
                       onKeyEvent: (event) => _moveFocus(
                         event,
                         i == 0 ? _fieldFocus : _itemNodes[i - 1],
-                        i + 1 < _itemNodes.length ? _itemNodes[i + 1] : null,
+                        i + 1 < _itemNodes.length
+                            ? _itemNodes[i + 1]
+                            : _searchFocus,
                       ),
                       onTap: () => Navigator.pop(context, _results[i]),
                     ),
@@ -155,7 +176,32 @@ class _WeatherCityDialogState extends State<WeatherCityDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _search, child: Text(localizations.weatherSearch)),
+        Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onKeyEvent: (_, event) => _moveFocus(
+            event,
+            _itemNodes.isEmpty ? _fieldFocus : _itemNodes.last,
+            null,
+          ),
+          child: TextButton(
+            focusNode: _searchFocus,
+            onPressed: _search,
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.focused)
+                    ? primary.withValues(alpha: 0.25)
+                    : null,
+              ),
+              side: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.focused)
+                    ? BorderSide(color: primary, width: 2)
+                    : null,
+              ),
+            ),
+            child: Text(localizations.weatherSearch),
+          ),
+        ),
       ],
     );
   }
@@ -193,16 +239,16 @@ class _CityTileState extends State<_CityTile> {
       child: ListTile(
         focusNode: widget.focusNode,
         onFocusChange: (value) => setState(() => _focused = value),
-        tileColor: _focused ? color.withOpacity(0.25) : null,
+        tileColor: _focused ? color.withValues(alpha: 0.25) : null,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(
             color: _focused ? color : Colors.transparent,
             width: 2,
           ),
-      ),
-      title: Text(widget.city.label),
-      onTap: widget.onTap,
+        ),
+        title: Text(widget.city.label),
+        onTap: widget.onTap,
       ),
     );
   }

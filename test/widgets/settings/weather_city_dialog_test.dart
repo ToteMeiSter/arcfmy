@@ -128,6 +128,96 @@ void main() {
     expect(picked, kazan);
   });
 
+  testWidgets('remote without Enter: OK in the field starts the search', (
+    tester,
+  ) async {
+    var calls = 0;
+    await openDialog(tester, (q, lang) async {
+      calls++;
+      return const [];
+    });
+    await tester.enterText(find.byType(TextField), 'Kazan');
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+  });
+
+  testWidgets('remote: OK in an empty field does not search', (tester) async {
+    var calls = 0;
+    await openDialog(tester, (q, lang) async {
+      calls++;
+      return const [];
+    });
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+  });
+
+  testWidgets('remote: down with an empty list reaches the Search button', (
+    tester,
+  ) async {
+    await openDialog(tester, (q, lang) async => const []);
+    await tester.enterText(find.byType(TextField), 'zzzz');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'weatherCitySearch');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(
+      FocusManager.instance.primaryFocus?.context
+          ?.findAncestorWidgetOfExactType<EditableText>(),
+      isNotNull,
+      reason: 'up from Search returns to the field',
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.text('No cities found'), findsOneWidget);
+  });
+
+  testWidgets('keyboard search action runs the search and hides the keyboard', (
+    tester,
+  ) async {
+    var calls = 0;
+    await openDialog(tester, (q, lang) async {
+      calls++;
+      return const [];
+    });
+    await tester.showKeyboard(find.byType(TextField));
+    expect(tester.testTextInput.isVisible, isTrue);
+    await tester.enterText(find.byType(TextField), 'Moscow');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+    expect(
+      tester.testTextInput.isVisible,
+      isFalse,
+      reason: 'the keyboard covers the results and keeps the D-pad',
+    );
+  });
+
+  testWidgets('down from the last result reaches the Search button', (
+    tester,
+  ) async {
+    const kazan = WeatherCity(
+      name: 'Kazan',
+      region: 'Tatarstan',
+      country: 'Russia',
+      latitude: 55.79,
+      longitude: 49.12,
+    );
+    await openDialog(tester, (q, lang) async => [kazan]);
+    await tester.enterText(find.byType(TextField), 'k');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'weatherCitySearch');
+  });
+
   testWidgets('no results and network error show a message', (tester) async {
     var fail = false;
     await openDialog(tester, (q, lang) async {
