@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flauncher/providers/network_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
+import 'package:flauncher/widgets/focus_aware_app_bar.dart';
 import 'package:flauncher/widgets/header_metrics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -192,6 +193,29 @@ void main() {
     // After success only the regular 45-min refresh remains.
     await tester.pump(const Duration(minutes: 10));
     expect(weatherRequests, 3);
+    await unmount(tester);
+  });
+
+  testWidgets('weather and CPU use the header style on one centre line', (
+    tester,
+  ) async {
+    final lines = [
+      'cpu  100 0 100 800 0 0 0 0 0 0',
+      'cpu  200 0 200 1000 0 0 0 0 0 0',
+    ];
+    var i = 0;
+    await pumpMetrics(tester, () async => lines[i < 1 ? i++ : 1]);
+    await tester.pump(const Duration(seconds: 3));
+
+    final weather = find.text('Казань 7°');
+    final cpu = find.text('CPU 50%');
+    final icon = find.byType(Icon);
+    expect(tester.widget<Text>(weather).style, HeaderStyle.text);
+    expect(tester.widget<Text>(cpu).style, HeaderStyle.text);
+    expect(tester.widget<Icon>(icon).size, HeaderStyle.iconSize);
+    final centre = tester.getCenter(weather).dy;
+    expect(tester.getCenter(cpu).dy, closeTo(centre, 0.5));
+    expect(tester.getCenter(icon).dy, closeTo(centre, 0.5));
     await unmount(tester);
   });
 }

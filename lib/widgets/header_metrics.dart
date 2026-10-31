@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/network_service.dart';
+import 'package:flauncher/widgets/focus_aware_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -237,23 +238,26 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     if (settings.showWeatherInStatusBar && key != _locationKey) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _fetchWeather());
     }
-    const style = TextStyle(
-      color: Colors.white,
-      fontSize: 18,
-      shadows: [Shadow(blurRadius: 4)],
-    );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (settings.showWeatherInStatusBar && online && _temperature != null) ...[
-          Icon(_weatherIcon, color: Colors.white, size: 20),
-          const SizedBox(width: 4),
-          Text('${_city ?? settings.weatherCity} $_temperature°', style: style),
-          const SizedBox(width: 16),
+          Icon(
+            _weatherIcon,
+            color: Colors.white,
+            size: HeaderStyle.iconSize,
+            shadows: HeaderStyle.shadows,
+          ),
+          const SizedBox(width: HeaderStyle.iconGap),
+          Text(
+            '${_city ?? settings.weatherCity} $_temperature°',
+            style: HeaderStyle.text,
+          ),
+          const SizedBox(width: HeaderStyle.gap),
         ],
         if (settings.showCpuInStatusBar && _cpuPercent != null) ...[
-          Text('CPU $_cpuPercent%', style: style),
-          const SizedBox(width: 16),
+          Text('CPU $_cpuPercent%', style: HeaderStyle.text),
+          const SizedBox(width: HeaderStyle.gap),
         ],
       ],
     );

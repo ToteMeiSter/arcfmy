@@ -1,4 +1,5 @@
 import 'package:flauncher/providers/network_service.dart';
+import 'package:flauncher/widgets/focus_aware_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -67,20 +68,12 @@ class NetworkWidget extends StatelessWidget
             break;
         }
 
-        final iconWidget = Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: Icon(
-            iconData,
-            size: 20,
-            color: iconColor,
-            shadows: const [
-              Shadow(
-                color: Colors.black54,
-                offset: Offset(0, 2),
-                blurRadius: 8,
-              ),
-            ],
-          ),
+        // No own padding: the AppBarFocusRing around it gives the spacing.
+        final iconWidget = Icon(
+          iconData,
+          size: HeaderStyle.iconSize,
+          color: iconColor ?? Colors.white,
+          shadows: HeaderStyle.shadows,
         );
 
         if (!interactive) {

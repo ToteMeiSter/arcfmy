@@ -11,6 +11,27 @@ import 'date_time_widget.dart';
 import 'header_metrics.dart';
 import 'network_widget.dart';
 
+/// The one style of the status bar: every text, icon, shadow and gap in the
+/// header comes from here. Height and letter spacing are explicit so the text
+/// does not inherit different values from the AppBar title and actions.
+abstract final class HeaderStyle {
+  static const shadows = [
+    Shadow(color: Colors.black54, offset: Offset(0, 2), blurRadius: 4),
+  ];
+  static const text = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w500,
+    height: 1.2,
+    letterSpacing: 0,
+    leadingDistribution: TextLeadingDistribution.even,
+    color: Colors.white,
+    shadows: shadows,
+  );
+  static const double iconSize = 22;
+  static const double iconGap = 6;
+  static const double gap = 16;
+}
+
 class FocusAwareAppBar extends StatefulWidget implements PreferredSizeWidget {
   const FocusAwareAppBar({Key? key}) : super(key: key);
 
@@ -112,25 +133,22 @@ class FocusAwareAppBarState extends State<FocusAwareAppBar> {
                 semanticLabel: 'Settings',
                 child: const Icon(
                   Icons.settings_outlined,
-                  size: 20,
+                  size: HeaderStyle.iconSize,
                   color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black54,
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  shadows: HeaderStyle.shadows,
                 ),
               ),
-              const SizedBox(width: 8),
+              // Focus rings add 6 px on each side: visible gap stays 16 px.
+              const SizedBox(width: HeaderStyle.gap - 12),
               // Network indicator (conditionally shown)
               Selector<SettingsService, bool>(
                 selector: (_, settings) =>
                     settings.showNetworkIndicatorInStatusBar,
                 builder: (context, showNetwork, _) => showNetwork
                     ? Padding(
-                        padding: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.only(
+                          right: HeaderStyle.gap - 12,
+                        ),
                         child: AppBarFocusRing(
                           onPressed: () =>
                               context.read<NetworkService>().openWifiSettings(),
@@ -170,20 +188,6 @@ class FocusAwareAppBarState extends State<FocusAwareAppBar> {
                       timeFormat: service.timeFormat,
                     ),
                     builder: (context, dateTimeSettings, _) {
-                      // Define standard text style
-                      const textStyle = TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black54,
-                            offset: Offset(0, 2),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      );
-
                       return Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -194,22 +198,20 @@ class FocusAwareAppBarState extends State<FocusAwareAppBar> {
                               dateTimeSettings.dateFormat,
                               key: const Key("statusbar_date"),
                               updateInterval: const Duration(minutes: 1),
-                              textStyle: textStyle,
+                              textStyle: HeaderStyle.text,
                             ),
 
                           if (dateTimeSettings.showDateInStatusBar &&
                               dateTimeSettings.showTimeInStatusBar)
-                            const SizedBox(width: 16),
+                            const SizedBox(width: HeaderStyle.gap),
 
-                          // Clock
+                          // Clock: same style as the rest of the header.
                           if (dateTimeSettings.showTimeInStatusBar)
                             DateTimeWidget(
                               dateTimeSettings.timeFormat,
                               key: const Key("statusbar_clock"),
                               updateInterval: const Duration(minutes: 1),
-                              textStyle: textStyle.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              textStyle: HeaderStyle.text,
                             ),
                         ],
                       );
