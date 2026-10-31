@@ -338,7 +338,7 @@ public class MainActivity extends FlutterActivity {
         }
         String inputId = packageName.substring(TV_INPUT_PREFIX.length());
         for (TvInputInfo info : manager.getTvInputList()) {
-            if (info.getId().equals(inputId)) {
+            if (info.getId().equals(inputId) && info.getParentId() == null) {
                 return info;
             }
         }
@@ -346,6 +346,7 @@ public class MainActivity extends FlutterActivity {
     }
 
     // Passthrough inputs (HDMI, AV) that have a handler for their VIEW intent; no handler means no tile.
+    // Child inputs (parentId set) never get a tile; findTvInput hides them too, so stale records are purged.
     private List<Map<String, Serializable>> buildTvInputApps() {
         List<Map<String, Serializable>> inputs = new ArrayList<>();
         TvInputManager manager = tvInputManager();
@@ -355,6 +356,11 @@ public class MainActivity extends FlutterActivity {
 
         for (TvInputInfo info : manager.getTvInputList()) {
             if (!info.isPassthroughInput() || info.isHidden(this)) {
+                continue;
+            }
+            // HDMI-CEC device inputs (e.g. HDMI200004) hang under their port input, which has its own tile.
+            if (info.getParentId() != null) {
+                Log.i(TV_INPUT_LOG_TAG, "drop " + info.getId() + ": child of " + info.getParentId());
                 continue;
             }
             Uri uri = TvContract.buildChannelUriForPassthroughInput(info.getId());
