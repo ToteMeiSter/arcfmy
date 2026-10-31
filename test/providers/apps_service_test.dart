@@ -139,6 +139,40 @@ void main() {
       ]));
       verify(database.deleteApps(["uninstalled.app", "disabled.app"]));
     });
+    test("keeps a TV input tile and does not ask the system whether it is installed", () async {
+      final channel = MockFLauncherChannel();
+      final database = MockFLauncherDatabase();
+      const inputId = 'tvinput:com.tv/.hdmi.HDMIInputService/HW5';
+      when(channel.getApplications()).thenAnswer((_) => Future.value([
+            {
+              'packageName': inputId,
+              'name': 'HDMI 1',
+              'version': '',
+              'sideloaded': false,
+              'action': 'content://android.media.tv/passthrough/x',
+            }
+          ]));
+      when(database.getApplications()).thenAnswer((_) => Future.value([
+            fakeApp(packageName: inputId, name: "HDMI 1", version: "", hidden: true),
+          ]));
+      when(database.getCategories()).thenAnswer((_) => Future.value([]));
+      when(database.getAppsCategories()).thenAnswer((_) => Future.value([]));
+      when(database.getLauncherSpacers()).thenAnswer((_) => Future.value([]));
+      when(database.transaction(any)).thenAnswer((realInvocation) => realInvocation.positionalArguments[0]());
+      when(database.wasCreated).thenReturn(false);
+      final appsService = AppsService(channel, database);
+      await untilCalled(channel.addAppsChangedListener(any));
+
+      verifyNever(channel.applicationExists(any));
+      verify(database.deleteApps([]));
+      final app = appsService.applications.firstWhere((a) => a.packageName == inputId);
+      expect(app.hidden, isTrue);
+      expect(app.action, 'content://android.media.tv/passthrough/x');
+
+      await appsService.launchApp(app);
+      verify(channel.launchActivityFromAction('content://android.media.tv/passthrough/x'));
+      verifyNever(channel.launchApp(any));
+    });
   });
 
   test("launchApp calls channel", () async {

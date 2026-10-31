@@ -34,6 +34,9 @@ import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Pair;
 import android.media.tv.TvContract;
+import android.media.tv.TvInputInfo;
+import android.media.tv.TvInputManager;
+import android.content.ComponentName;
 import android.database.Cursor;
 import android.Manifest;
 
@@ -82,6 +85,9 @@ public class MainActivity extends FlutterActivity {
     private static final String PERMISSION_READ_TV_LISTINGS = "android.permission.READ_TV_LISTINGS";
     private static final int REQUEST_CODE_READ_TV_LISTINGS = 1001;
     private static final String COLUMN_ASPECT_RATIO = "aspect_ratio";
+    // Hardware TV inputs (HDMI, AV) are listed as pseudo-apps: packageName = prefix + TvInput id.
+    private static final String TV_INPUT_PREFIX = "tvinput:";
+    private static final String PASSTHROUGH_URI_PREFIX = "content://android.media.tv/passthrough/";
 
     private MethodChannel methodChannel;
 
@@ -314,7 +320,94 @@ public class MainActivity extends FlutterActivity {
             }
         }
 
+        applications.addAll(buildTvInputApps());
+
         return applications;
+    }
+
+    private TvInputManager tvInputManager() {
+        return (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
+    }
+
+    private TvInputInfo findTvInput(String packageName) {
+        TvInputManager manager = tvInputManager();
+        if (manager == null || packageName == null || !packageName.startsWith(TV_INPUT_PREFIX)) {
+            return null;
+        }
+        String inputId = packageName.substring(TV_INPUT_PREFIX.length());
+        for (TvInputInfo info : manager.getTvInputList()) {
+            if (info.getId().equals(inputId)) {
+                return info;
+            }
+        }
+        return null;
+    }
+
+    // Passthrough inputs (HDMI, AV) that have a handler for their VIEW intent; no handler means no tile.
+    private List<Map<String, Serializable>> buildTvInputApps() {
+        List<Map<String, Serializable>> inputs = new ArrayList<>();
+        TvInputManager manager = tvInputManager();
+        if (manager == null) {
+            return inputs;
+        }
+
+        for (TvInputInfo info : manager.getTvInputList()) {
+            if (!info.isPassthroughInput() || info.isHidden(this)) {
+                continue;
+            }
+            Uri uri = TvContract.buildChannelUriForPassthroughInput(info.getId());
+            if (buildTvInputIntent(uri) == null) {
+                continue;
+            }
+
+            CharSequence label = info.loadCustomLabel(this);
+            if (label == null || label.length() == 0) {
+                label = info.loadLabel(this);
+            }
+
+            Map<String, Serializable> appMap = new HashMap<>();
+            appMap.put("name", label == null ? info.getId() : label.toString());
+            appMap.put("packageName", TV_INPUT_PREFIX + info.getId());
+            appMap.put("version", "");
+            appMap.put("sideloaded", false);
+            appMap.put("action", uri.toString());
+            inputs.add(appMap);
+        }
+        return inputs;
+    }
+
+    // Some TV firmwares (Oneway) crash their InputPlaybackActivity when the launcher that
+    // opened the input is not the stock one, while the same-package TvPlaybackActivity
+    // (handler of channel URIs) plays the passthrough URI fine. So: if a handler of the
+    // passthrough URI shares its package with a *.TvPlaybackActivity, go there explicitly.
+    private Intent buildTvInputIntent(Uri passthroughUri) {
+        PackageManager packageManager = getPackageManager();
+        Intent intent = new Intent(Intent.ACTION_VIEW, passthroughUri);
+        List<ResolveInfo> handlers = packageManager.queryIntentActivities(intent, 0);
+        if (handlers.isEmpty()) {
+            return null;
+        }
+
+        List<ResolveInfo> channelHandlers = packageManager.queryIntentActivities(
+                new Intent(Intent.ACTION_VIEW, TvContract.buildChannelUri(0)), 0);
+        for (ResolveInfo channelHandler : channelHandlers) {
+            ActivityInfo playback = channelHandler.activityInfo;
+            if (!playback.name.endsWith(".TvPlaybackActivity")) {
+                continue;
+            }
+            for (ResolveInfo handler : handlers) {
+                if (handler.activityInfo.packageName.equals(playback.packageName)) {
+                    intent.setComponent(new ComponentName(playback.packageName, playback.name));
+                    return intent;
+                }
+            }
+        }
+        return intent;
+    }
+
+    private boolean launchTvInput(String passthroughUri) {
+        Intent intent = buildTvInputIntent(Uri.parse(passthroughUri));
+        return intent != null && tryStartActivity(intent);
     }
 
     public Map<String, Serializable> getApplication(String packageName) {
@@ -337,7 +430,14 @@ public class MainActivity extends FlutterActivity {
         return map;
     }
 
+    // For a TV-input pseudo-app, icons and banners come from the package that owns the input service.
+    private String iconPackage(String packageName) {
+        TvInputInfo input = findTvInput(packageName);
+        return input == null ? packageName : input.getServiceInfo().packageName;
+    }
+
     private byte[] getApplicationBanner(String packageName) {
+        packageName = iconPackage(packageName);
         byte[] imageBytes = new byte[0];
 
         PackageManager packageManager = getPackageManager();
@@ -361,6 +461,7 @@ public class MainActivity extends FlutterActivity {
     }
 
     private byte[] getApplicationIcon(String packageName) {
+        packageName = iconPackage(packageName);
         byte[] imageBytes = new byte[0];
 
         PackageManager packageManager = getPackageManager();
@@ -378,6 +479,10 @@ public class MainActivity extends FlutterActivity {
     }
 
     private boolean applicationExists(String packageName) {
+        if (packageName.startsWith(TV_INPUT_PREFIX)) {
+            return findTvInput(packageName) != null;
+        }
+
         int flags;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -437,6 +542,9 @@ public class MainActivity extends FlutterActivity {
     }
 
     private boolean launchActivityFromAction(String action) {
+        if (action.startsWith(PASSTHROUGH_URI_PREFIX)) {
+            return launchTvInput(action);
+        }
         return tryStartActivity(new Intent(action));
     }
 
