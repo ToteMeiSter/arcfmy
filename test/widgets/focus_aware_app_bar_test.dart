@@ -1,4 +1,5 @@
 import 'package:flauncher/providers/launcher_state.dart';
+import 'package:flauncher/providers/network_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/widgets/focus_aware_app_bar.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,14 @@ import 'package:mockito/mockito.dart';
 import 'package:provider/provider.dart';
 
 import '../mocks.mocks.dart';
+
+class _FakeNetwork extends ChangeNotifier implements NetworkService {
+  @override
+  bool get hasInternetAccess => true;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   group('FocusAwareAppBar', () {
@@ -28,6 +37,11 @@ void main() {
       when(settingsService.timeFormat).thenReturn('HH:mm');
       when(settingsService.dateFormat).thenReturn('yyyy-MM-dd');
       when(settingsService.accentColorHex).thenReturn('6750A4');
+      when(settingsService.showWeatherInStatusBar).thenReturn(false);
+      when(settingsService.showCpuInStatusBar).thenReturn(false);
+      when(settingsService.weatherCity).thenReturn('Казань');
+      when(settingsService.weatherLatitude).thenReturn(55.79);
+      when(settingsService.weatherLongitude).thenReturn(49.12);
     });
 
     Widget createTestWidget() {
@@ -35,6 +49,7 @@ void main() {
         providers: [
           ChangeNotifierProvider<SettingsService>.value(value: settingsService),
           ChangeNotifierProvider<LauncherState>.value(value: launcherState),
+          ChangeNotifierProvider<NetworkService>.value(value: _FakeNetwork()),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -178,6 +193,23 @@ void main() {
         find.descendant(of: find.byType(FocusAwareAppBar), matching: find.byType(AnimatedContainer)),
       );
       expect(container.constraints?.maxHeight, kToolbarHeight);
+    });
+
+    testWidgets('clock and settings icon share the header style and centre line', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      final clock = find.descendant(
+        of: find.byKey(const Key('statusbar_clock')),
+        matching: find.byType(Text),
+      );
+      final gear = find.byIcon(Icons.settings_outlined);
+      expect(tester.widget<Text>(clock).style, HeaderStyle.text);
+      expect(tester.widget<Icon>(gear).size, HeaderStyle.iconSize);
+      expect(
+        tester.getCenter(clock).dy,
+        closeTo(tester.getCenter(gear).dy, 1),
+      );
     });
   });
 }
