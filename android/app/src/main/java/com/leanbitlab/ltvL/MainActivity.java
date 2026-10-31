@@ -376,8 +376,8 @@ public class MainActivity extends FlutterActivity {
         return inputs;
     }
 
-    // Some TV firmwares (Oneway) crash their InputPlaybackActivity when the launcher that
-    // opened the input is not the stock one, while the same-package TvPlaybackActivity
+    // Some TV firmwares (Oneway) crash their InputPlaybackActivity on a passthrough input
+    // without signal (NPE in onVideoUnavailable), while the same-package TvPlaybackActivity
     // (handler of channel URIs) plays the passthrough URI fine. So: if a handler of the
     // passthrough URI shares its package with a *.TvPlaybackActivity, go there explicitly.
     private Intent buildTvInputIntent(Uri passthroughUri) {
