@@ -1,5 +1,7 @@
 import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/providers/settings_service.dart';
+import 'package:flauncher/widgets/header_metrics.dart';
+import 'package:flauncher/widgets/rounded_switch_list_tile.dart';
 import 'package:flauncher/widgets/settings/status_bar_panel_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,13 +31,17 @@ void main() {
       when(settingsService.setHideStatusBarInGrid(any)).thenAnswer((_) async {});
     });
 
-    Widget createTestWidget() {
+    Widget createTestWidget({CpuStatReader? readCpuStat}) {
       return ChangeNotifierProvider<SettingsService>.value(
         value: settingsService,
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: StatusBarPanelPage()),
+          home: Scaffold(
+            body: StatusBarPanelPage(
+              readCpuStat: readCpuStat ?? () async => 'cpu  1 2 3 4 5 6 7 0',
+            ),
+          ),
         ),
       );
     }
@@ -74,6 +80,42 @@ void main() {
       await tester.tap(find.text('Show weather'));
       await tester.pumpAndSettle();
       verify(settingsService.setShowWeatherInStatusBar(false)).called(1);
+    });
+
+    for (final entry in {
+      'null (SELinux)': () async => null,
+      'not a number': () async => 'cpu  a b c d e',
+    }.entries) {
+      testWidgets('CPU switch disabled with caption when /proc/stat is ${entry.key}',
+          (tester) async {
+        await tester.pumpWidget(createTestWidget(readCpuStat: entry.value));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Show CPU load'));
+
+        expect(find.text('Unavailable on this device'), findsOneWidget);
+        final tile = tester.widget<RoundedSwitchListTile>(
+          find.widgetWithText(RoundedSwitchListTile, 'Show CPU load'),
+        );
+        expect(tile.onChanged, isNull);
+        expect(tile.value, isFalse);
+
+        await tester.tap(find.text('Show CPU load'));
+        await tester.pumpAndSettle();
+        verifyNever(settingsService.setShowCpuInStatusBar(any));
+      });
+    }
+
+    testWidgets('CPU switch enabled without caption when /proc/stat is readable',
+        (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Unavailable on this device'), findsNothing);
+      final tile = tester.widget<RoundedSwitchListTile>(
+        find.widgetWithText(RoundedSwitchListTile, 'Show CPU load'),
+      );
+      expect(tile.onChanged, isNotNull);
+      expect(tile.value, isTrue);
     });
   });
 }

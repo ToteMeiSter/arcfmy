@@ -2,6 +2,7 @@
     "showWeather": "Показывать погоду",
     "weatherLocation": "Город для погоды",
     "showCpuLoad": "Показывать загрузку CPU",
+    "statusBarCpuUnavailable": "Недоступно на этом устройстве",
     "weatherCityName": "Название города",
     "weatherSearch": "Найти",
     "weatherNoResults": "Города не найдены",

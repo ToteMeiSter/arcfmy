@@ -357,6 +357,7 @@
     "showWeather": "Show weather",
     "weatherLocation": "Weather location",
     "showCpuLoad": "Show CPU load",
+    "statusBarCpuUnavailable": "Unavailable on this device",
     "weatherCityName": "City name",
     "weatherSearch": "Search",
     "weatherNoResults": "No cities found",
