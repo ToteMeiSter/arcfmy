@@ -32,8 +32,12 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
 import android.provider.Settings;
+import android.util.Log;
 import android.util.Pair;
 import android.media.tv.TvContract;
+import android.media.tv.TvInputInfo;
+import android.media.tv.TvInputManager;
+import android.content.ComponentName;
 import android.database.Cursor;
 import android.Manifest;
 
@@ -82,6 +86,10 @@ public class MainActivity extends FlutterActivity {
     private static final String PERMISSION_READ_TV_LISTINGS = "android.permission.READ_TV_LISTINGS";
     private static final int REQUEST_CODE_READ_TV_LISTINGS = 1001;
     private static final String COLUMN_ASPECT_RATIO = "aspect_ratio";
+    // Hardware TV inputs (HDMI, AV) are listed as pseudo-apps: packageName = prefix + TvInput id.
+    private static final String TV_INPUT_PREFIX = "tvinput:";
+    private static final String TV_INPUT_LOG_TAG = "ArcTvInput";
+    private static final String PASSTHROUGH_URI_PREFIX = "content://android.media.tv/passthrough/";
 
     private MethodChannel methodChannel;
 
@@ -314,7 +322,109 @@ public class MainActivity extends FlutterActivity {
             }
         }
 
+        applications.addAll(buildTvInputApps());
+
         return applications;
+    }
+
+    private TvInputManager tvInputManager() {
+        return (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
+    }
+
+    private TvInputInfo findTvInput(String packageName) {
+        TvInputManager manager = tvInputManager();
+        if (manager == null || packageName == null || !packageName.startsWith(TV_INPUT_PREFIX)) {
+            return null;
+        }
+        String inputId = packageName.substring(TV_INPUT_PREFIX.length());
+        for (TvInputInfo info : manager.getTvInputList()) {
+            if (info.getId().equals(inputId) && info.getParentId() == null) {
+                return info;
+            }
+        }
+        return null;
+    }
+
+    // Passthrough inputs (HDMI, AV) that have a handler for their VIEW intent; no handler means no tile.
+    // Child inputs (parentId set) never get a tile; findTvInput hides them too, so stale records are purged.
+    private List<Map<String, Serializable>> buildTvInputApps() {
+        List<Map<String, Serializable>> inputs = new ArrayList<>();
+        TvInputManager manager = tvInputManager();
+        if (manager == null) {
+            return inputs;
+        }
+
+        for (TvInputInfo info : manager.getTvInputList()) {
+            if (!info.isPassthroughInput() || info.isHidden(this)) {
+                continue;
+            }
+            // HDMI-CEC device inputs (e.g. HDMI200004) hang under their port input, which has its own tile.
+            if (info.getParentId() != null) {
+                Log.i(TV_INPUT_LOG_TAG, "drop " + info.getId() + ": child of " + info.getParentId());
+                continue;
+            }
+            Uri uri = TvContract.buildChannelUriForPassthroughInput(info.getId());
+            if (buildTvInputIntent(uri, info.getId()) == null) {
+                continue;
+            }
+
+            CharSequence label = info.loadCustomLabel(this);
+            if (label == null || label.length() == 0) {
+                label = info.loadLabel(this);
+            }
+
+            Map<String, Serializable> appMap = new HashMap<>();
+            appMap.put("name", label == null ? info.getId() : label.toString());
+            appMap.put("packageName", TV_INPUT_PREFIX + info.getId());
+            appMap.put("version", "");
+            appMap.put("sideloaded", false);
+            appMap.put("action", uri.toString());
+            inputs.add(appMap);
+        }
+        return inputs;
+    }
+
+    // Some TV firmwares (Oneway) crash their InputPlaybackActivity on a passthrough input
+    // without signal (NPE in onVideoUnavailable), while the same-package TvPlaybackActivity
+    // (handler of channel URIs) plays the passthrough URI fine. So: if a handler of the
+    // passthrough URI shares its package with a *.TvPlaybackActivity, go there explicitly.
+    // The VIEW intents carry an explicit type: PackageManager takes it from the TvProvider, which is
+    // invisible to us on Android 11 without a <queries> provider entry, and an untyped content URI
+    // then matches nothing. Every reason to drop an input is logged under TV_INPUT_LOG_TAG.
+    private Intent buildTvInputIntent(Uri passthroughUri, String inputId) {
+        PackageManager packageManager = getPackageManager();
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(passthroughUri, TvContract.Channels.CONTENT_ITEM_TYPE);
+        List<ResolveInfo> handlers = packageManager.queryIntentActivities(intent, 0);
+        if (handlers.isEmpty()) {
+            Log.i(TV_INPUT_LOG_TAG, "drop " + inputId + ": no handler for " + passthroughUri);
+            return null;
+        }
+
+        Intent channelIntent = new Intent(Intent.ACTION_VIEW);
+        channelIntent.setDataAndType(TvContract.buildChannelUri(0), TvContract.Channels.CONTENT_ITEM_TYPE);
+        List<ResolveInfo> channelHandlers = packageManager.queryIntentActivities(channelIntent, 0);
+        for (ResolveInfo channelHandler : channelHandlers) {
+            ActivityInfo playback = channelHandler.activityInfo;
+            if (!playback.name.endsWith(".TvPlaybackActivity")) {
+                continue;
+            }
+            for (ResolveInfo handler : handlers) {
+                if (handler.activityInfo.packageName.equals(playback.packageName)) {
+                    intent.setComponent(new ComponentName(playback.packageName, playback.name));
+                    Log.i(TV_INPUT_LOG_TAG, "keep " + inputId + ": " + playback.name);
+                    return intent;
+                }
+            }
+        }
+        Log.i(TV_INPUT_LOG_TAG, "keep " + inputId + ": implicit VIEW, no TvPlaybackActivity in handler package ("
+                + handlers.size() + " handlers, " + channelHandlers.size() + " channel handlers)");
+        return intent;
+    }
+
+    private boolean launchTvInput(String passthroughUri, String inputId) {
+        Intent intent = buildTvInputIntent(Uri.parse(passthroughUri), inputId);
+        return intent != null && tryStartActivity(intent);
     }
 
     public Map<String, Serializable> getApplication(String packageName) {
@@ -337,7 +447,14 @@ public class MainActivity extends FlutterActivity {
         return map;
     }
 
+    // For a TV-input pseudo-app, icons and banners come from the package that owns the input service.
+    private String iconPackage(String packageName) {
+        TvInputInfo input = findTvInput(packageName);
+        return input == null ? packageName : input.getServiceInfo().packageName;
+    }
+
     private byte[] getApplicationBanner(String packageName) {
+        packageName = iconPackage(packageName);
         byte[] imageBytes = new byte[0];
 
         PackageManager packageManager = getPackageManager();
@@ -361,6 +478,7 @@ public class MainActivity extends FlutterActivity {
     }
 
     private byte[] getApplicationIcon(String packageName) {
+        packageName = iconPackage(packageName);
         byte[] imageBytes = new byte[0];
 
         PackageManager packageManager = getPackageManager();
@@ -378,6 +496,10 @@ public class MainActivity extends FlutterActivity {
     }
 
     private boolean applicationExists(String packageName) {
+        if (packageName.startsWith(TV_INPUT_PREFIX)) {
+            return findTvInput(packageName) != null;
+        }
+
         int flags;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -437,6 +559,9 @@ public class MainActivity extends FlutterActivity {
     }
 
     private boolean launchActivityFromAction(String action) {
+        if (action.startsWith(PASSTHROUGH_URI_PREFIX)) {
+            return launchTvInput(action, Uri.parse(action).getLastPathSegment());
+        }
         return tryStartActivity(new Intent(action));
     }
 

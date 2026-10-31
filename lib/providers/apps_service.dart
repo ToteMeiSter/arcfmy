@@ -98,9 +98,13 @@ class AppsService extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    await _refreshState(shouldNotifyListeners: false);
+    final newPackages = await _refreshState(shouldNotifyListeners: false);
     if (_database.wasCreated) {
       await _initProjectorCategories();
+      await _markTvInputRowMigrated();
+    } else {
+      await _placeNewApps(newPackages);
+      await _migrateTvInputTiles();
     }
 
     _fLauncherChannel.addAppsChangedListener((event) async {
@@ -317,7 +321,55 @@ class AppsService extends ChangeNotifier {
     await persistSectionsOrder();
   }
 
-  Future<void> _refreshState({bool shouldNotifyListeners = true}) async {
+  static const _tvInputPrefix = 'tvinput:';
+  static const _tvInputRowMigratedKey = 'tvinput_row_migrated';
+
+  /// Apps that appeared in the system while Arc was not running land in the
+  /// "Приложения" row like a PACKAGE_ADDED app. Hidden apps stay untouched.
+  Future<void> _placeNewApps(Set<String> packageNames) async {
+    if (packageNames.isEmpty || _categoriesById.isEmpty) return;
+    final target = _findTargetCategoryForNewApp();
+    if (target == null) return;
+    for (final name in packageNames) {
+      final app = _applications[name];
+      if (app == null || app.hidden || app.categoryOrders.isNotEmpty) continue;
+      await addToCategory(app, target, shouldNotifyListeners: false);
+    }
+  }
+
+  /// One-off: 4141 stored `tvinput:*` entries without a category on existing
+  /// databases. The prefs flag keeps a tile the owner removes from coming back.
+  Future<void> _migrateTvInputTiles() async {
+    try {
+      final prefs = await _prefsAsync;
+      if (prefs.getBool(_tvInputRowMigratedKey) ?? false) return;
+      if (_categoriesById.isEmpty) return;
+      final target = _findTargetCategoryForNewApp();
+      if (target == null) return;
+      for (final app in _applications.values) {
+        if (app.packageName.startsWith(_tvInputPrefix) &&
+            !app.hidden &&
+            app.categoryOrders.isEmpty) {
+          await addToCategory(app, target, shouldNotifyListeners: false);
+        }
+      }
+      await prefs.setBool(_tvInputRowMigratedKey, true);
+    } catch (e, st) {
+      debugPrint('tvinput row migration failed: $e\n$st');
+    }
+  }
+
+  Future<void> _markTvInputRowMigrated() async {
+    try {
+      final prefs = await _prefsAsync;
+      await prefs.setBool(_tvInputRowMigratedKey, true);
+    } catch (e) {
+      debugPrint('tvinput row flag failed: $e');
+    }
+  }
+
+  /// Returns package names that were in the system but not yet in the database.
+  Future<Set<String>> _refreshState({bool shouldNotifyListeners = true}) async {
     Future<List<App>> appsFromDatabaseFuture = _database.getApplications();
     Future<List<AppCategory>> appsCategoriesFuture = _database
         .getAppsCategories();
@@ -336,6 +388,10 @@ class AppsService extends ChangeNotifier {
         Map.fromEntries(appEntries);
 
     List<App> appsFromDatabase = await appsFromDatabaseFuture;
+    final knownPackages = appsFromDatabase.map((a) => a.packageName).toSet();
+    final newPackages = appsFromSystemByPackageName.keys
+        .where((name) => !knownPackages.contains(name))
+        .toSet();
     final Iterable<App> appsRemovedFromSystem = appsFromDatabase.where(
       (app) => !appsFromSystemByPackageName.containsKey(app.packageName),
     );
@@ -423,6 +479,7 @@ class AppsService extends ChangeNotifier {
     if (shouldNotifyListeners) {
       notifyListeners();
     }
+    return newPackages;
   }
 
   void sortCategory(Category category) {
