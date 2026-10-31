@@ -37,6 +37,7 @@ import android.util.Pair;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
+import android.widget.Toast;
 import android.content.ComponentName;
 import android.database.Cursor;
 import android.Manifest;
@@ -384,13 +385,12 @@ public class MainActivity extends FlutterActivity {
         return inputs;
     }
 
-    // Some TV firmwares (Oneway) crash their InputPlaybackActivity on a passthrough input
-    // without signal (NPE in onVideoUnavailable), while the same-package TvPlaybackActivity
-    // (handler of channel URIs) plays the passthrough URI fine. So: if a handler of the
-    // passthrough URI shares its package with a *.TvPlaybackActivity, go there explicitly.
-    // The VIEW intents carry an explicit type: PackageManager takes it from the TvProvider, which is
-    // invisible to us on Android 11 without a <queries> provider entry, and an untyped content URI
-    // then matches nothing. Every reason to drop an input is logged under TV_INPUT_LOG_TAG.
+    // A passthrough URI must go to the passthrough handler. The same-package *.TvPlaybackActivity (handler of
+    // channel URIs) only looks the URI up among its broadcast channels, finds nothing and plays the last
+    // channel instead (proven on Oneway by its dex and a probe). The explicit component keeps other
+    // handlers of the same URI (file managers) out. The VIEW intent carries an explicit type: PackageManager
+    // takes it from the TvProvider, which is invisible to us on Android 11 without a <queries> provider
+    // entry, and an untyped content URI then matches nothing. Every reason to drop an input is logged.
     private Intent buildTvInputIntent(Uri passthroughUri, String inputId) {
         PackageManager packageManager = getPackageManager();
         Intent intent = new Intent(Intent.ACTION_VIEW);
@@ -401,30 +401,49 @@ public class MainActivity extends FlutterActivity {
             return null;
         }
 
+        // The TV app is the handler whose package also handles channel URIs.
         Intent channelIntent = new Intent(Intent.ACTION_VIEW);
         channelIntent.setDataAndType(TvContract.buildChannelUri(0), TvContract.Channels.CONTENT_ITEM_TYPE);
         List<ResolveInfo> channelHandlers = packageManager.queryIntentActivities(channelIntent, 0);
-        for (ResolveInfo channelHandler : channelHandlers) {
-            ActivityInfo playback = channelHandler.activityInfo;
-            if (!playback.name.endsWith(".TvPlaybackActivity")) {
-                continue;
-            }
-            for (ResolveInfo handler : handlers) {
-                if (handler.activityInfo.packageName.equals(playback.packageName)) {
-                    intent.setComponent(new ComponentName(playback.packageName, playback.name));
-                    Log.i(TV_INPUT_LOG_TAG, "keep " + inputId + ": " + playback.name);
+        for (ResolveInfo handler : handlers) {
+            for (ResolveInfo channelHandler : channelHandlers) {
+                if (handler.activityInfo.packageName.equals(channelHandler.activityInfo.packageName)) {
+                    ActivityInfo target = handler.activityInfo;
+                    intent.setComponent(new ComponentName(target.packageName, target.name));
+                    Log.i(TV_INPUT_LOG_TAG, "keep " + inputId + ": " + target.name);
                     return intent;
                 }
             }
         }
-        Log.i(TV_INPUT_LOG_TAG, "keep " + inputId + ": implicit VIEW, no TvPlaybackActivity in handler package ("
+        Log.i(TV_INPUT_LOG_TAG, "keep " + inputId + ": implicit VIEW, no handler shares a package with channel handlers ("
                 + handlers.size() + " handlers, " + channelHandlers.size() + " channel handlers)");
         return intent;
     }
 
+    // Without a signal the vendor's input player crashes (NPE in onVideoUnavailable), so an input that is
+    // not INPUT_STATE_CONNECTED is not launched: the user gets a toast instead of a FATAL in the TV app.
     private boolean launchTvInput(String passthroughUri, String inputId) {
+        TvInputManager manager = tvInputManager();
+        if (manager == null) {
+            return false;
+        }
+        int state = manager.getInputState(inputId);
         Intent intent = buildTvInputIntent(Uri.parse(passthroughUri), inputId);
-        return intent != null && tryStartActivity(intent);
+        if (intent == null) {
+            return false;
+        }
+        if (state != TvInputManager.INPUT_STATE_CONNECTED) {
+            Log.i(TV_INPUT_LOG_TAG, "skip " + inputId + ": state " + state + " (not connected)");
+            TvInputInfo info = findTvInput(TV_INPUT_PREFIX + inputId);
+            CharSequence label = info == null ? null : info.loadCustomLabel(this);
+            if (label == null || label.length() == 0) {
+                label = info == null ? inputId : info.loadLabel(this);
+            }
+            Toast.makeText(this, getString(R.string.tv_input_no_signal, label), Toast.LENGTH_LONG).show();
+            return true;
+        }
+        Log.i(TV_INPUT_LOG_TAG, "launch " + inputId + ": state connected, " + intent.getComponent());
+        return tryStartActivity(intent);
     }
 
     public Map<String, Serializable> getApplication(String packageName) {
