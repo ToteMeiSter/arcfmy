@@ -782,6 +782,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get showCpuLoad => 'Hiện mức tải CPU';
 
   @override
+  String get statusBarCpuUnavailable => 'Không khả dụng trên thiết bị này';
+
+  @override
   String get weatherCityName => 'Tên thành phố';
 
   @override

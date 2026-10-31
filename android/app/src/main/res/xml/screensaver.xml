@@ -1,3 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<dream xmlns:android="http://schemas.android.com/apk/res/android"
-    android:settingsActivity="me.efesser.flauncher/.MainActivity" />
+<!-- Без android:settingsActivity: TvSettings вызывает startActivity для него ДО записи выбора,
+     а несуществующий компонент роняет com.android.tv.settings (ActivityNotFoundException). -->
+<dream xmlns:android="http://schemas.android.com/apk/res/android" />

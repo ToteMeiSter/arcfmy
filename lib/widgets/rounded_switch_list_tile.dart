@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 class RoundedSwitchListTile extends StatelessWidget {
   final bool value;
   final bool autofocus;
-  final ValueChanged<bool> onChanged;
+  /// Null disables the row (dimmed, not pressable).
+  final ValueChanged<bool>? onChanged;
   final Widget title;
   final Widget? subtitle;
   final Widget secondary;
@@ -25,7 +26,7 @@ class RoundedSwitchListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return FocusableSettingsTile(
       autofocus: autofocus,
-      onPressed: () => onChanged(!value),
+      onPressed: onChanged == null ? null : () => onChanged!(!value),
       leading: secondary,
       title: title,
       subtitle: subtitle,

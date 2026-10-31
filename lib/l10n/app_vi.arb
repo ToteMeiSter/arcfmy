@@ -238,6 +238,7 @@
   "showWeather": "Hiện thời tiết",
   "weatherLocation": "Thành phố thời tiết",
   "showCpuLoad": "Hiện mức tải CPU",
+  "statusBarCpuUnavailable": "Không khả dụng trên thiết bị này",
   "weatherCityName": "Tên thành phố",
   "weatherSearch": "Tìm",
   "weatherNoResults": "Không tìm thấy thành phố",

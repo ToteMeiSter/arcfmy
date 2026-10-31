@@ -776,6 +776,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showCpuLoad => 'Show CPU load';
 
   @override
+  String get statusBarCpuUnavailable => 'Unavailable on this device';
+
+  @override
   String get weatherCityName => 'City name';
 
   @override

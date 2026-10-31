@@ -1532,6 +1532,12 @@ abstract class AppLocalizations {
   /// **'Show CPU load'**
   String get showCpuLoad;
 
+  /// No description provided for @statusBarCpuUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable on this device'**
+  String get statusBarCpuUnavailable;
+
   /// No description provided for @weatherCityName.
   ///
   /// In en, this message translates to:
