@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'package:flauncher/widgets/header_metrics.dart';
 import 'package:flauncher/widgets/rounded_switch_list_tile.dart';
 import 'package:flauncher/widgets/settings/settings_theme.dart';
 import 'package:flauncher/widgets/settings/focusable_settings_tile.dart';
@@ -27,8 +28,21 @@ import 'package:flauncher/l10n/app_localizations.dart';
 
 import '../../providers/settings_service.dart';
 
-class StatusBarPanelPage extends StatelessWidget {
+class StatusBarPanelPage extends StatefulWidget {
   static const String routeName = "status_bar_panel";
+
+  const StatusBarPanelPage({super.key, this.readCpuStat = readProcStat});
+
+  final CpuStatReader readCpuStat;
+
+  @override
+  State<StatusBarPanelPage> createState() => _StatusBarPanelPageState();
+}
+
+class _StatusBarPanelPageState extends State<StatusBarPanelPage> {
+  late final Future<bool> _cpuAvailable = isCpuStatAvailable(
+    widget.readCpuStat,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -91,12 +105,25 @@ class StatusBarPanelPage extends StatelessWidget {
                 trailing: Text(settingsService.weatherCity),
                 onPressed: () => _editWeather(context, settingsService),
               ),
-              RoundedSwitchListTile(
-                value: settingsService.showCpuInStatusBar,
-                onChanged: (value) =>
-                    settingsService.setShowCpuInStatusBar(value),
-                title: Text(localizations.showCpuLoad),
-                secondary: const Icon(Icons.memory_outlined),
+              FutureBuilder<bool>(
+                future: _cpuAvailable,
+                builder: (context, snapshot) {
+                  // While probing, keep the switch enabled: no flicker on
+                  // devices where /proc/stat is readable.
+                  final available = snapshot.data ?? true;
+                  return RoundedSwitchListTile(
+                    // Stored value is kept; the disabled switch just shows «off».
+                    value: available && settingsService.showCpuInStatusBar,
+                    onChanged: available
+                        ? (value) => settingsService.setShowCpuInStatusBar(value)
+                        : null,
+                    title: Text(localizations.showCpuLoad),
+                    subtitle: available
+                        ? null
+                        : Text(localizations.statusBarCpuUnavailable),
+                    secondary: const Icon(Icons.memory_outlined),
+                  );
+                },
               ),
               RoundedSwitchListTile(
                 value: settingsService.showWifiWidgetInStatusBar,

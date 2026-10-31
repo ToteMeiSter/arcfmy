@@ -20,6 +20,25 @@ Future<String?> readProcStat() async {
   }
 }
 
+/// Numeric fields of a /proc/stat cpu line; throws when null or not numbers.
+List<int> parseCpuStat(String? line) {
+  if (line == null) throw const FormatException('/proc/stat unreadable');
+  final fields =
+      line.trim().split(RegExp(r'\s+')).skip(1).map(int.parse).toList();
+  if (fields.length < 5) throw const FormatException('/proc/stat short');
+  return fields;
+}
+
+/// True when /proc/stat is readable and numeric (false under SELinux).
+Future<bool> isCpuStatAvailable(CpuStatReader read) async {
+  try {
+    parseCpuStat(await read());
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 /// Reads only while the launcher is in the foreground and the widget is
 /// switched on in the settings. No background service.
 class HeaderMetrics extends StatefulWidget {
@@ -116,15 +135,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
 
   Future<void> _readCpu() async {
     try {
-      final line = await widget.readCpuStat();
-      if (line == null) throw const FormatException('/proc/stat unreadable');
-      final fields = line
-          .trim()
-          .split(RegExp(r'\s+'))
-          .skip(1)
-          .map(int.parse)
-          .toList();
-      if (fields.length < 5) throw const FormatException('/proc/stat short');
+      final fields = parseCpuStat(await widget.readCpuStat());
       final total = fields.fold<int>(0, (sum, value) => sum + value);
       final idle = fields[3] + fields[4];
       final deltaTotal = total - (_lastTotal ?? total);
