@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flauncher/providers/network_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/widgets/header_metrics.dart';
@@ -22,12 +24,16 @@ void main() {
   late MockSettingsService settings;
   late _FakeNetwork network;
   late int weatherRequests;
+  late String weatherBody;
+  late bool weatherFails;
   late http.Client client;
 
   setUp(() {
     settings = MockSettingsService();
     network = _FakeNetwork();
     weatherRequests = 0;
+    weatherBody = '{"current":{"temperature_2m":7.4,"weather_code":3}}';
+    weatherFails = false;
     when(settings.showCpuInStatusBar).thenReturn(true);
     when(settings.showWeatherInStatusBar).thenReturn(true);
     when(settings.weatherCity).thenReturn('Казань');
@@ -35,10 +41,8 @@ void main() {
     when(settings.weatherLongitude).thenReturn(49.12);
     client = MockClient((request) async {
       weatherRequests++;
-      return http.Response(
-        '{"current":{"temperature_2m":7.4,"weather_code":3}}',
-        200,
-      );
+      if (weatherFails) throw const SocketException('No route to host');
+      return http.Response(weatherBody, 200);
     });
   });
 
@@ -119,6 +123,75 @@ void main() {
 
     expect(weatherRequests, 1);
     expect(find.text('Казань 7°'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  Future<void> expectIcon(
+    WidgetTester tester,
+    String current,
+    IconData icon,
+  ) async {
+    weatherBody = '{"current":{"temperature_2m":4,$current}}';
+    await pumpMetrics(tester, () async => null);
+
+    expect(find.byIcon(icon), findsOneWidget);
+    await unmount(tester);
+  }
+
+  testWidgets('clear day: sun icon', (tester) async {
+    await expectIcon(
+      tester,
+      '"weather_code":0,"is_day":1',
+      Icons.wb_sunny_outlined,
+    );
+  });
+
+  testWidgets('clear night: moon icon, not the sun', (tester) async {
+    await expectIcon(
+      tester,
+      '"weather_code":0,"is_day":0',
+      Icons.nightlight_outlined,
+    );
+    expect(find.byIcon(Icons.wb_sunny_outlined), findsNothing);
+  });
+
+  testWidgets('cloudy night: cloudy moon icon', (tester) async {
+    await expectIcon(
+      tester,
+      '"weather_code":2,"is_day":0',
+      Icons.nights_stay_outlined,
+    );
+  });
+
+  testWidgets('rain at night keeps the rain icon', (tester) async {
+    await expectIcon(
+      tester,
+      '"weather_code":61,"is_day":0',
+      Icons.water_drop_outlined,
+    );
+  });
+
+  testWidgets('failed request is retried in 2 min until success', (
+    tester,
+  ) async {
+    weatherFails = true;
+    await pumpMetrics(tester, () async => null);
+    expect(weatherRequests, 1);
+    expect(find.textContaining('Казань'), findsNothing);
+
+    await tester.pump(const Duration(minutes: 2));
+    await tester.pump();
+    expect(weatherRequests, 2);
+
+    weatherFails = false;
+    await tester.pump(const Duration(minutes: 2));
+    await tester.pump();
+    expect(weatherRequests, 3);
+    expect(find.text('Казань 7°'), findsOneWidget);
+
+    // After success only the regular 45-min refresh remains.
+    await tester.pump(const Duration(minutes: 10));
+    expect(weatherRequests, 3);
     await unmount(tester);
   });
 }

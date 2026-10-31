@@ -39,6 +39,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     with WidgetsBindingObserver {
   Timer? _cpuTimer;
   Timer? _weatherTimer;
+  Timer? _weatherRetryTimer;
   bool _foreground = true;
   bool _cpuUnavailable = false;
   int? _lastTotal;
@@ -46,6 +47,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
   int? _cpuPercent;
   int? _temperature;
   int? _weatherCode;
+  bool _isDay = true;
   String? _city;
   String? _locationKey;
   DateTime? _weatherFetchedAt;
@@ -88,8 +90,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
         (_) => _fetchWeather(),
       );
     } else if (!_wantWeather && _weatherTimer != null) {
-      _weatherTimer?.cancel();
-      _weatherTimer = null;
+      _stopWeather();
     }
   }
 
@@ -100,10 +101,16 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     _lastIdle = null;
   }
 
-  void _stop() {
-    _stopCpu();
+  void _stopWeather() {
     _weatherTimer?.cancel();
     _weatherTimer = null;
+    _weatherRetryTimer?.cancel();
+    _weatherRetryTimer = null;
+  }
+
+  void _stop() {
+    _stopCpu();
+    _stopWeather();
   }
 
   Future<void> _readCpu() async {
@@ -160,7 +167,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
       final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
         'latitude': settings.weatherLatitude.toString(),
         'longitude': settings.weatherLongitude.toString(),
-        'current': 'temperature_2m,weather_code',
+        'current': 'temperature_2m,weather_code,is_day',
       });
       final response = await (widget.httpClient?.get(uri) ?? http.get(uri))
           .timeout(const Duration(seconds: 10));
@@ -173,12 +180,22 @@ class _HeaderMetricsState extends State<HeaderMetrics>
         setState(() {
           _temperature = (current['temperature_2m'] as num).round();
           _weatherCode = (current['weather_code'] as num).toInt();
+          _isDay = (current['is_day'] as num?)?.toInt() != 0;
           _city = settings.weatherCity;
           _weatherFetchedAt = DateTime.now();
         });
+        _weatherRetryTimer?.cancel();
+        _weatherRetryTimer = null;
       }
     } catch (_) {
       if (mounted) setState(() => _temperature = null);
+      // No network at load time: retry soon instead of waiting 45 min.
+      if (mounted && _wantWeather) {
+        _weatherRetryTimer ??= Timer(const Duration(minutes: 2), () {
+          _weatherRetryTimer = null;
+          _fetchWeather();
+        });
+      }
     } finally {
       if (_fetchingKey == key) _fetchingKey = null;
     }
@@ -186,8 +203,12 @@ class _HeaderMetricsState extends State<HeaderMetrics>
 
   IconData get _weatherIcon {
     final code = _weatherCode ?? 0;
-    if (code == 0) return Icons.wb_sunny_outlined;
-    if (code <= 3) return Icons.cloud_outlined;
+    if (code == 0) {
+      return _isDay ? Icons.wb_sunny_outlined : Icons.nightlight_outlined;
+    }
+    if (code <= 3) {
+      return _isDay ? Icons.cloud_outlined : Icons.nights_stay_outlined;
+    }
     if (code >= 71 && code <= 77) return Icons.ac_unit;
     if (code >= 95) return Icons.thunderstorm_outlined;
     return Icons.water_drop_outlined;

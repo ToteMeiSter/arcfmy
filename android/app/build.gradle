@@ -58,8 +58,8 @@ android {
         compileSdk 36
         minSdkVersion flutter.minSdkVersion
         targetSdk 35
-        versionCode 4135
-        versionName "1.2.0-mgd.9"
+        versionCode 4136
+        versionName "1.2.0-mgd.10"
     }
 
     signingConfigs {
