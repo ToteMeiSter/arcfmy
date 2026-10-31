@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'app_bar_focus_ring.dart';
+import 'focus_aware_app_bar.dart';
 
 class DailyWifiUsageWidget extends StatelessWidget {
   const DailyWifiUsageWidget({super.key});
@@ -20,16 +21,14 @@ class DailyWifiUsageWidget extends StatelessWidget {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.data_usage, size: 20, color: Colors.white),
-                SizedBox(width: 8),
-                Text(
-                  "Grant Usage Permission",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
+                Icon(
+                  Icons.data_usage,
+                  size: HeaderStyle.iconSize,
+                  color: Colors.white,
+                  shadows: HeaderStyle.shadows,
                 ),
+                SizedBox(width: HeaderStyle.iconGap),
+                Text("Grant Usage Permission", style: HeaderStyle.text),
               ],
             ),
           );
@@ -56,25 +55,7 @@ class DailyWifiUsageWidget extends StatelessWidget {
             final usage = snapshot.data ?? networkService.dailyWifiUsage;
             final usageString = _formatBytes(usage);
 
-            return RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(color: Colors.black54, offset: Offset(0, 2), blurRadius: 4)
-                  ],
-                ),
-                children: [
-                  TextSpan(text: label),
-                  TextSpan(
-                    text: usageString,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            );
+            return Text('$label$usageString', style: HeaderStyle.text);
           },
         );
       },
