@@ -32,6 +32,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
 import android.provider.Settings;
+import android.util.Log;
 import android.util.Pair;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
@@ -87,6 +88,7 @@ public class MainActivity extends FlutterActivity {
     private static final String COLUMN_ASPECT_RATIO = "aspect_ratio";
     // Hardware TV inputs (HDMI, AV) are listed as pseudo-apps: packageName = prefix + TvInput id.
     private static final String TV_INPUT_PREFIX = "tvinput:";
+    private static final String TV_INPUT_LOG_TAG = "ArcTvInput";
     private static final String PASSTHROUGH_URI_PREFIX = "content://android.media.tv/passthrough/";
 
     private MethodChannel methodChannel;
@@ -356,7 +358,7 @@ public class MainActivity extends FlutterActivity {
                 continue;
             }
             Uri uri = TvContract.buildChannelUriForPassthroughInput(info.getId());
-            if (buildTvInputIntent(uri) == null) {
+            if (buildTvInputIntent(uri, info.getId()) == null) {
                 continue;
             }
 
@@ -380,16 +382,22 @@ public class MainActivity extends FlutterActivity {
     // without signal (NPE in onVideoUnavailable), while the same-package TvPlaybackActivity
     // (handler of channel URIs) plays the passthrough URI fine. So: if a handler of the
     // passthrough URI shares its package with a *.TvPlaybackActivity, go there explicitly.
-    private Intent buildTvInputIntent(Uri passthroughUri) {
+    // The VIEW intents carry an explicit type: PackageManager takes it from the TvProvider, which is
+    // invisible to us on Android 11 without a <queries> provider entry, and an untyped content URI
+    // then matches nothing. Every reason to drop an input is logged under TV_INPUT_LOG_TAG.
+    private Intent buildTvInputIntent(Uri passthroughUri, String inputId) {
         PackageManager packageManager = getPackageManager();
-        Intent intent = new Intent(Intent.ACTION_VIEW, passthroughUri);
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(passthroughUri, TvContract.Channels.CONTENT_ITEM_TYPE);
         List<ResolveInfo> handlers = packageManager.queryIntentActivities(intent, 0);
         if (handlers.isEmpty()) {
+            Log.i(TV_INPUT_LOG_TAG, "drop " + inputId + ": no handler for " + passthroughUri);
             return null;
         }
 
-        List<ResolveInfo> channelHandlers = packageManager.queryIntentActivities(
-                new Intent(Intent.ACTION_VIEW, TvContract.buildChannelUri(0)), 0);
+        Intent channelIntent = new Intent(Intent.ACTION_VIEW);
+        channelIntent.setDataAndType(TvContract.buildChannelUri(0), TvContract.Channels.CONTENT_ITEM_TYPE);
+        List<ResolveInfo> channelHandlers = packageManager.queryIntentActivities(channelIntent, 0);
         for (ResolveInfo channelHandler : channelHandlers) {
             ActivityInfo playback = channelHandler.activityInfo;
             if (!playback.name.endsWith(".TvPlaybackActivity")) {
@@ -398,15 +406,18 @@ public class MainActivity extends FlutterActivity {
             for (ResolveInfo handler : handlers) {
                 if (handler.activityInfo.packageName.equals(playback.packageName)) {
                     intent.setComponent(new ComponentName(playback.packageName, playback.name));
+                    Log.i(TV_INPUT_LOG_TAG, "keep " + inputId + ": " + playback.name);
                     return intent;
                 }
             }
         }
+        Log.i(TV_INPUT_LOG_TAG, "keep " + inputId + ": implicit VIEW, no TvPlaybackActivity in handler package ("
+                + handlers.size() + " handlers, " + channelHandlers.size() + " channel handlers)");
         return intent;
     }
 
-    private boolean launchTvInput(String passthroughUri) {
-        Intent intent = buildTvInputIntent(Uri.parse(passthroughUri));
+    private boolean launchTvInput(String passthroughUri, String inputId) {
+        Intent intent = buildTvInputIntent(Uri.parse(passthroughUri), inputId);
         return intent != null && tryStartActivity(intent);
     }
 
@@ -543,7 +554,7 @@ public class MainActivity extends FlutterActivity {
 
     private boolean launchActivityFromAction(String action) {
         if (action.startsWith(PASSTHROUGH_URI_PREFIX)) {
-            return launchTvInput(action);
+            return launchTvInput(action, Uri.parse(action).getLastPathSegment());
         }
         return tryStartActivity(new Intent(action));
     }

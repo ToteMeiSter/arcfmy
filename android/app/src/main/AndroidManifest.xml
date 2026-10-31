@@ -58,6 +58,7 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="content" android:host="android.media.tv" android:mimeType="*/*" />
         </intent>
+        <provider android:authorities="android.media.tv" />
     </queries>
 
     <application
