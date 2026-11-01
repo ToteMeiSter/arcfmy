@@ -19,9 +19,6 @@
 import 'package:flauncher/widgets/header_metrics.dart';
 import 'package:flauncher/widgets/rounded_switch_list_tile.dart';
 import 'package:flauncher/widgets/settings/settings_theme.dart';
-import 'package:flauncher/widgets/settings/focusable_settings_tile.dart';
-import 'package:flauncher/widgets/settings/weather_city_dialog.dart';
-import 'package:flauncher/widgets/weather_geocoding.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flauncher/l10n/app_localizations.dart';
@@ -99,12 +96,6 @@ class _StatusBarPanelPageState extends State<StatusBarPanelPage> {
                 title: Text(localizations.showWeather),
                 secondary: const Icon(Icons.wb_sunny_outlined),
               ),
-              FocusableSettingsTile(
-                leading: const Icon(Icons.location_city_outlined),
-                title: Text(localizations.weatherLocation),
-                trailing: Text(settingsService.weatherCity),
-                onPressed: () => _editWeather(context, settingsService),
-              ),
               FutureBuilder<bool>(
                 future: _cpuAvailable,
                 builder: (context, snapshot) {
@@ -144,22 +135,5 @@ class _StatusBarPanelPageState extends State<StatusBarPanelPage> {
         ),
       ],
     );
-  }
-
-  Future<void> _editWeather(
-    BuildContext context,
-    SettingsService settings,
-  ) async {
-    final city = await showDialog<WeatherCity>(
-      context: context,
-      builder: (_) => const WeatherCityDialog(),
-    );
-    if (city != null) {
-      await settings.setWeatherLocation(
-        city.name,
-        city.latitude,
-        city.longitude,
-      );
-    }
   }
 }

@@ -789,4 +789,95 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get weatherSearchFailed => 'Search failed. Check the network connection.';
+
+  @override
+  String get weatherSettings => 'Weather';
+
+  @override
+  String get weatherHeaderFields => 'Shown in the status bar';
+
+  @override
+  String get weatherFieldIcon => 'Icon';
+
+  @override
+  String get weatherFieldCity => 'City';
+
+  @override
+  String get weatherFieldTemperature => 'Temperature';
+
+  @override
+  String get weatherFieldFeelsLike => 'Feels like';
+
+  @override
+  String get weatherKeepOneField => 'At least one field must stay on';
+
+  @override
+  String get weatherTemperatureUnit => 'Temperature unit';
+
+  @override
+  String get weatherWindUnit => 'Wind speed unit';
+
+  @override
+  String get weatherWindMs => 'm/s';
+
+  @override
+  String get weatherWindKmh => 'km/h';
+
+  @override
+  String get weatherRefreshInterval => 'Update interval';
+
+  @override
+  String weatherMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String weatherFeelsShort(String temp) {
+    return 'feels $temp°';
+  }
+
+  @override
+  String weatherDetailsTitle(String city) {
+    return 'Weather: $city';
+  }
+
+  @override
+  String get weatherHumidity => 'Humidity';
+
+  @override
+  String get weatherWind => 'Wind';
+
+  @override
+  String get weatherPressure => 'Pressure';
+
+  @override
+  String weatherPressureValue(String value) {
+    return '$value hPa';
+  }
+
+  @override
+  String get weatherPrecipitation => 'Precipitation';
+
+  @override
+  String weatherPrecipitationValue(String value) {
+    return '$value mm';
+  }
+
+  @override
+  String get weatherSunrise => 'Sunrise';
+
+  @override
+  String get weatherSunset => 'Sunset';
+
+  @override
+  String get weatherHourly => 'Next hours';
+
+  @override
+  String get weatherDaily => 'Next days';
+
+  @override
+  String get weatherNoData => 'No weather data';
+
+  @override
+  String get weatherClose => 'Close';
 }

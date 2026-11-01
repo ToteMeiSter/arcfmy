@@ -1751,6 +1751,104 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
       ) as bool);
 
   @override
+  bool get weatherFahrenheit => (super.noSuchMethod(
+        Invocation.getter(#weatherFahrenheit),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  bool get weatherWindKmh => (super.noSuchMethod(
+        Invocation.getter(#weatherWindKmh),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  bool get weatherShowIcon => (super.noSuchMethod(
+        Invocation.getter(#weatherShowIcon),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  bool get weatherShowCity => (super.noSuchMethod(
+        Invocation.getter(#weatherShowCity),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  bool get weatherShowTemperature => (super.noSuchMethod(
+        Invocation.getter(#weatherShowTemperature),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  bool get weatherShowFeelsLike => (super.noSuchMethod(
+        Invocation.getter(#weatherShowFeelsLike),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  int get weatherRefreshMinutes => (super.noSuchMethod(
+        Invocation.getter(#weatherRefreshMinutes),
+        returnValue: 0,
+        returnValueForMissingStub: 0,
+      ) as int);
+
+  @override
+  _i9.Future<void> setWeatherFahrenheit(bool? value) => (super.noSuchMethod(
+        Invocation.method(#setWeatherFahrenheit, [value]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setWeatherWindKmh(bool? value) => (super.noSuchMethod(
+        Invocation.method(#setWeatherWindKmh, [value]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setWeatherShowIcon(bool? value) => (super.noSuchMethod(
+        Invocation.method(#setWeatherShowIcon, [value]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setWeatherShowCity(bool? value) => (super.noSuchMethod(
+        Invocation.method(#setWeatherShowCity, [value]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setWeatherShowTemperature(bool? value) => (super.noSuchMethod(
+        Invocation.method(#setWeatherShowTemperature, [value]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setWeatherShowFeelsLike(bool? value) => (super.noSuchMethod(
+        Invocation.method(#setWeatherShowFeelsLike, [value]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setWeatherRefreshMinutes(int? minutes) => (super.noSuchMethod(
+        Invocation.method(#setWeatherRefreshMinutes, [minutes]),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
   _i9.Future<void> setShowWeatherInStatusBar(bool? show) => (super.noSuchMethod(
         Invocation.method(#setShowWeatherInStatusBar, [show]),
         returnValue: _i9.Future<void>.value(),

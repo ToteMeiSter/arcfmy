@@ -789,4 +789,95 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get weatherSearchFailed => 'Не удалось выполнить поиск. Проверьте подключение к сети.';
+
+  @override
+  String get weatherSettings => 'Погода';
+
+  @override
+  String get weatherHeaderFields => 'Что показывать в строке состояния';
+
+  @override
+  String get weatherFieldIcon => 'Значок';
+
+  @override
+  String get weatherFieldCity => 'Город';
+
+  @override
+  String get weatherFieldTemperature => 'Температура';
+
+  @override
+  String get weatherFieldFeelsLike => 'Ощущается как';
+
+  @override
+  String get weatherKeepOneField => 'Хотя бы одно поле должно остаться включённым';
+
+  @override
+  String get weatherTemperatureUnit => 'Единицы температуры';
+
+  @override
+  String get weatherWindUnit => 'Единицы скорости ветра';
+
+  @override
+  String get weatherWindMs => 'м/с';
+
+  @override
+  String get weatherWindKmh => 'км/ч';
+
+  @override
+  String get weatherRefreshInterval => 'Интервал обновления';
+
+  @override
+  String weatherMinutes(int minutes) {
+    return '$minutes мин';
+  }
+
+  @override
+  String weatherFeelsShort(String temp) {
+    return 'ощущ. $temp°';
+  }
+
+  @override
+  String weatherDetailsTitle(String city) {
+    return 'Погода: $city';
+  }
+
+  @override
+  String get weatherHumidity => 'Влажность';
+
+  @override
+  String get weatherWind => 'Ветер';
+
+  @override
+  String get weatherPressure => 'Давление';
+
+  @override
+  String weatherPressureValue(String value) {
+    return '$value мм рт. ст.';
+  }
+
+  @override
+  String get weatherPrecipitation => 'Осадки';
+
+  @override
+  String weatherPrecipitationValue(String value) {
+    return '$value мм';
+  }
+
+  @override
+  String get weatherSunrise => 'Восход';
+
+  @override
+  String get weatherSunset => 'Закат';
+
+  @override
+  String get weatherHourly => 'Ближайшие часы';
+
+  @override
+  String get weatherDaily => 'Ближайшие дни';
+
+  @override
+  String get weatherNoData => 'Нет данных о погоде';
+
+  @override
+  String get weatherClose => 'Закрыть';
 }

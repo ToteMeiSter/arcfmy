@@ -791,4 +791,95 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get weatherSearchFailed => 'Search failed. Check the network connection.';
+
+  @override
+  String get weatherSettings => 'Hava durumu';
+
+  @override
+  String get weatherHeaderFields => 'Durum çubuğunda göster';
+
+  @override
+  String get weatherFieldIcon => 'Simge';
+
+  @override
+  String get weatherFieldCity => 'Şehir';
+
+  @override
+  String get weatherFieldTemperature => 'Sıcaklık';
+
+  @override
+  String get weatherFieldFeelsLike => 'Hissedilen';
+
+  @override
+  String get weatherKeepOneField => 'En az bir alan açık kalmalı';
+
+  @override
+  String get weatherTemperatureUnit => 'Sıcaklık birimi';
+
+  @override
+  String get weatherWindUnit => 'Rüzgar hızı birimi';
+
+  @override
+  String get weatherWindMs => 'm/s';
+
+  @override
+  String get weatherWindKmh => 'km/sa';
+
+  @override
+  String get weatherRefreshInterval => 'Güncelleme aralığı';
+
+  @override
+  String weatherMinutes(int minutes) {
+    return '$minutes dk';
+  }
+
+  @override
+  String weatherFeelsShort(String temp) {
+    return 'hiss. $temp°';
+  }
+
+  @override
+  String weatherDetailsTitle(String city) {
+    return 'Hava durumu: $city';
+  }
+
+  @override
+  String get weatherHumidity => 'Nem';
+
+  @override
+  String get weatherWind => 'Rüzgar';
+
+  @override
+  String get weatherPressure => 'Basınç';
+
+  @override
+  String weatherPressureValue(String value) {
+    return '$value hPa';
+  }
+
+  @override
+  String get weatherPrecipitation => 'Yağış';
+
+  @override
+  String weatherPrecipitationValue(String value) {
+    return '$value mm';
+  }
+
+  @override
+  String get weatherSunrise => 'Gün doğumu';
+
+  @override
+  String get weatherSunset => 'Gün batımı';
+
+  @override
+  String get weatherHourly => 'Önümüzdeki saatler';
+
+  @override
+  String get weatherDaily => 'Önümüzdeki günler';
+
+  @override
+  String get weatherNoData => 'Hava durumu verisi yok';
+
+  @override
+  String get weatherClose => 'Kapat';
 }

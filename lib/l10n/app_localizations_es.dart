@@ -797,4 +797,95 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get weatherSearchFailed => 'Search failed. Check the network connection.';
+
+  @override
+  String get weatherSettings => 'Clima';
+
+  @override
+  String get weatherHeaderFields => 'Mostrar en la barra de estado';
+
+  @override
+  String get weatherFieldIcon => 'Icono';
+
+  @override
+  String get weatherFieldCity => 'Ciudad';
+
+  @override
+  String get weatherFieldTemperature => 'Temperatura';
+
+  @override
+  String get weatherFieldFeelsLike => 'Sensación térmica';
+
+  @override
+  String get weatherKeepOneField => 'Debe quedar al menos un campo activado';
+
+  @override
+  String get weatherTemperatureUnit => 'Unidad de temperatura';
+
+  @override
+  String get weatherWindUnit => 'Unidad de velocidad del viento';
+
+  @override
+  String get weatherWindMs => 'm/s';
+
+  @override
+  String get weatherWindKmh => 'km/h';
+
+  @override
+  String get weatherRefreshInterval => 'Intervalo de actualización';
+
+  @override
+  String weatherMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String weatherFeelsShort(String temp) {
+    return 'sens. $temp°';
+  }
+
+  @override
+  String weatherDetailsTitle(String city) {
+    return 'Clima: $city';
+  }
+
+  @override
+  String get weatherHumidity => 'Humedad';
+
+  @override
+  String get weatherWind => 'Viento';
+
+  @override
+  String get weatherPressure => 'Presión';
+
+  @override
+  String weatherPressureValue(String value) {
+    return '$value hPa';
+  }
+
+  @override
+  String get weatherPrecipitation => 'Precipitación';
+
+  @override
+  String weatherPrecipitationValue(String value) {
+    return '$value mm';
+  }
+
+  @override
+  String get weatherSunrise => 'Amanecer';
+
+  @override
+  String get weatherSunset => 'Atardecer';
+
+  @override
+  String get weatherHourly => 'Próximas horas';
+
+  @override
+  String get weatherDaily => 'Próximos días';
+
+  @override
+  String get weatherNoData => 'Sin datos del clima';
+
+  @override
+  String get weatherClose => 'Cerrar';
 }

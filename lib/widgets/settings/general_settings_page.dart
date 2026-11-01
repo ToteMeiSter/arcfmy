@@ -26,6 +26,7 @@ import 'date_time_format_page.dart';
 import 'back_button_action_page.dart';
 import 'wifi_usage_period_page.dart';
 import 'screensaver_clock_style_page.dart';
+import 'weather_settings_page.dart';
 
 
 class GeneralSettingsPage extends StatelessWidget {
@@ -80,6 +81,12 @@ class GeneralSettingsPage extends StatelessWidget {
                   leading: const Icon(Icons.wifi),
                   title: Text(localizations.wifiUsagePeriod, style: Theme.of(context).textTheme.bodyMedium),
                   onPressed: () => Navigator.of(context).pushNamed(WifiUsagePeriodPage.routeName),
+                ),
+                FocusableSettingsTile(
+                  showChevron: true,
+                  leading: const Icon(Icons.wb_sunny_outlined),
+                  title: Text(localizations.weatherSettings, style: Theme.of(context).textTheme.bodyMedium),
+                  onPressed: () => Navigator.of(context).pushNamed(WeatherSettingsPage.routeName),
                 ),
 
               ],

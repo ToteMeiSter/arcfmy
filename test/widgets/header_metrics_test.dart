@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flauncher/providers/launcher_state.dart';
 import 'package:flauncher/providers/network_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/widgets/focus_aware_app_bar.dart';
@@ -40,6 +41,14 @@ void main() {
     when(settings.weatherCity).thenReturn('Казань');
     when(settings.weatherLatitude).thenReturn(55.79);
     when(settings.weatherLongitude).thenReturn(49.12);
+    when(settings.accentColorHex).thenReturn('0A84FF');
+    when(settings.weatherShowIcon).thenReturn(true);
+    when(settings.weatherShowCity).thenReturn(true);
+    when(settings.weatherShowTemperature).thenReturn(true);
+    when(settings.weatherShowFeelsLike).thenReturn(false);
+    when(settings.weatherFahrenheit).thenReturn(false);
+    when(settings.weatherWindKmh).thenReturn(false);
+    when(settings.weatherRefreshMinutes).thenReturn(45);
     client = MockClient((request) async {
       weatherRequests++;
       if (weatherFails) throw const SocketException('No route to host');
@@ -53,6 +62,7 @@ void main() {
         providers: [
           ChangeNotifierProvider<SettingsService>.value(value: settings),
           ChangeNotifierProvider<NetworkService>.value(value: network),
+          ChangeNotifierProvider<LauncherState>(create: (_) => LauncherState()),
         ],
         child: MaterialApp(
           home: Scaffold(

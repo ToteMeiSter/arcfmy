@@ -35,6 +35,7 @@ import 'package:flauncher/widgets/apps_grid.dart';
 import 'package:flauncher/widgets/category_row.dart';
 import 'package:flauncher/widgets/settings/settings_panel.dart';
 import 'package:flauncher/widgets/settings/settings_panel_page.dart';
+import 'package:flauncher/widgets/weather_details_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -150,6 +151,31 @@ void main() {
     expect(find.byType(SettingsPanel), findsNothing);
     final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
     expect(scrollable.position.pixels, scrollable.position.minScrollExtent);
+  });
+
+  testWidgets("HOME closes an open weather details panel", (tester) async {
+    final appsService = mkAppService();
+    when(appsService.categoriesWithApps).thenReturn([
+      CategoryWithApps(fakeCategory(name: "Favorites", order: 0), []),
+      CategoryWithApps(fakeCategory(name: "Applications", order: 1), []),
+    ]);
+    await _pumpWidgetWith(tester, appsService);
+    showDialog<void>(
+      context: tester.element(find.byType(FLauncher)),
+      builder: (_) => const WeatherDetailsDialog(city: "Казань"),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(WeatherDetailsDialog), findsOneWidget);
+
+    final reply = Completer<ByteData?>();
+    tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'me.efesser.flauncher/method',
+      const StandardMethodCodec().encodeMethodCall(const MethodCall('homePressed')),
+      reply.complete,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(WeatherDetailsDialog), findsNothing);
   });
 
   testWidgets("Pressing select on app launches app", (tester) async {
