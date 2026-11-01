@@ -850,9 +850,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get weatherNow => 'Ahora';
-
-  @override
   String get weatherHumidity => 'Humedad';
 
   @override

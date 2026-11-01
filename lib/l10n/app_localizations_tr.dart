@@ -844,9 +844,6 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get weatherNow => 'Şimdi';
-
-  @override
   String get weatherHumidity => 'Nem';
 
   @override

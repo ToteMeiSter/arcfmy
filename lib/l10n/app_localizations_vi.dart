@@ -848,9 +848,6 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
-  String get weatherNow => 'Hiện tại';
-
-  @override
   String get weatherHumidity => 'Độ ẩm';
 
   @override

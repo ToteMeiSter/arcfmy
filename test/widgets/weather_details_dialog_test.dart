@@ -8,19 +8,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'weather_fixture.dart';
 
 void main() {
-  Future<void> open(WidgetTester tester, WeatherData? data) async {
+  Future<void> open(
+    WidgetTester tester,
+    WeatherData? data, {
+    bool fahrenheit = false,
+    bool windKmh = false,
+    Locale? locale,
+  }) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
+        locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () => showDialog<void>(
               context: context,
-              builder: (_) => WeatherDetailsDialog(city: 'Казань', data: data),
+              builder: (_) => WeatherDetailsDialog(
+                city: 'Казань',
+                data: data,
+                fahrenheit: fahrenheit,
+                windKmh: windKmh,
+              ),
             ),
             child: const Text('open'),
           ),
@@ -34,14 +46,16 @@ void main() {
   testWidgets('shows now, sunrise/sunset, hourly and 5 days', (tester) async {
     await open(
       tester,
-      WeatherData.fromJson(weatherFixture(), fahrenheit: true, windKmh: true),
+      WeatherData.fromJson(weatherFixture()),
+      fahrenheit: true,
+      windKmh: true,
     );
 
     expect(find.text('Weather: Казань'), findsOneWidget);
-    expect(find.text('27°F'), findsOneWidget);
-    expect(find.text('feels 22°'), findsOneWidget);
+    expect(find.text('81°F'), findsOneWidget);
+    expect(find.text('feels 72°'), findsOneWidget);
     expect(find.text('100%'), findsOneWidget); // humidity
-    expect(find.text('12 km/h'), findsOneWidget);
+    expect(find.text('45 km/h'), findsOneWidget);
     expect(find.text('1020 hPa'), findsOneWidget);
     expect(find.text('0.0 mm'), findsOneWidget);
     expect(find.text('06:48'), findsOneWidget);
@@ -60,6 +74,20 @@ void main() {
 
     expect(find.text('12.4 m/s'), findsOneWidget);
     expect(find.text('27°C'), findsOneWidget);
+  });
+
+  testWidgets('pressure: hPa by default', (tester) async {
+    await open(tester, WeatherData.fromJson(weatherFixture()));
+    expect(find.text('1020 hPa'), findsOneWidget);
+  });
+
+  testWidgets('pressure in mm Hg for the ru locale', (tester) async {
+    await open(
+      tester,
+      WeatherData.fromJson(weatherFixture()),
+      locale: const Locale('ru'),
+    );
+    expect(find.text('765 мм рт. ст.'), findsOneWidget);
   });
 
   testWidgets('no data: a clear message, no crash', (tester) async {

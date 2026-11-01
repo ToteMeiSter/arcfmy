@@ -5,12 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'weather_fixture.dart';
 
 void main() {
-  test('parses current, hourly and daily in °F and km/h', () {
-    final data = WeatherData.fromJson(
-      weatherFixture(),
-      fahrenheit: true,
-      windKmh: true,
-    );
+  test('parses current, hourly and daily (always °C, m/s, hPa)', () {
+    final data = WeatherData.fromJson(weatherFixture());
 
     expect(data.temperature, 27.2);
     expect(data.feelsLike, 22.1);
@@ -21,8 +17,6 @@ void main() {
     expect(data.precipitation, 0.0);
     expect(data.code, 45);
     expect(data.isDay, isTrue);
-    expect(data.fahrenheit, isTrue);
-    expect(data.windKmh, isTrue);
     expect(data.sunrise, DateTime(2026, 11, 1, 6, 48));
     expect(data.sunset, DateTime(2026, 11, 1, 16, 20));
   });
@@ -63,15 +57,10 @@ void main() {
     expect(data.sunrise, isNull);
   });
 
-  test('query asks one request for current, hourly and daily in the units', () {
-    final query = weatherQuery(
-      latitude: 55.79,
-      longitude: 49.12,
-      fahrenheit: true,
-      windKmh: false,
-    );
+  test('query is one request for current, hourly and daily in °C and m/s', () {
+    final query = weatherQuery(latitude: 55.79, longitude: 49.12);
 
-    expect(query['temperature_unit'], 'fahrenheit');
+    expect(query['temperature_unit'], 'celsius');
     expect(query['wind_speed_unit'], 'ms');
     expect(query['timezone'], 'auto');
     expect(query['forecast_days'], '5');
@@ -79,13 +68,13 @@ void main() {
     expect(query['current'], contains('is_day'));
     expect(query['hourly'], contains('precipitation_probability'));
     expect(query['daily'], contains('sunrise'));
-    expect(
-      weatherQuery(latitude: 1, longitude: 2, fahrenheit: false, windKmh: true),
-      allOf(
-        containsPair('temperature_unit', 'celsius'),
-        containsPair('wind_speed_unit', 'kmh'),
-      ),
-    );
+  });
+
+  test('local unit conversion', () {
+    expect(celsiusToFahrenheit(27.2), closeTo(80.96, 0.001));
+    expect(celsiusToFahrenheit(-40), closeTo(-40, 0.001));
+    expect(msToKmh(10), closeTo(36, 0.001));
+    expect(hpaToMmHg(1013.25), closeTo(760, 0.1));
   });
 
   test('night icons follow is_day', () {

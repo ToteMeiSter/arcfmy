@@ -14,13 +14,18 @@ IconData weatherIconFor(int code, bool isDay) {
   return Icons.water_drop_outlined;
 }
 
+double celsiusToFahrenheit(double celsius) => celsius * 9 / 5 + 32;
+
+double msToKmh(double ms) => ms * 3.6;
+
+double hpaToMmHg(double hpa) => hpa * 0.750062;
+
 /// Query of the one Open-Meteo forecast request that feeds both the header
-/// and the details panel.
+/// and the details panel. Always °C and m/s: units are converted locally, so
+/// changing them needs no request.
 Map<String, String> weatherQuery({
   required double latitude,
   required double longitude,
-  required bool fahrenheit,
-  required bool windKmh,
 }) => {
   'latitude': latitude.toString(),
   'longitude': longitude.toString(),
@@ -33,8 +38,8 @@ Map<String, String> weatherQuery({
       'precipitation_probability_max,sunrise,sunset',
   'timezone': 'auto',
   'forecast_days': '5',
-  'temperature_unit': fahrenheit ? 'fahrenheit' : 'celsius',
-  'wind_speed_unit': windKmh ? 'kmh' : 'ms',
+  'temperature_unit': 'celsius',
+  'wind_speed_unit': 'ms',
 };
 
 class HourlyWeather {
@@ -69,7 +74,7 @@ class DailyWeather {
   });
 }
 
-/// Parsed forecast response. Only [temperature] and [code] are required;
+/// Parsed forecast response in °C, m/s, hPa. Only [temperature] and [code] are required;
 /// every other part may be missing and is then shown as «no data».
 class WeatherData {
   final double temperature;
@@ -86,10 +91,6 @@ class WeatherData {
   final List<HourlyWeather> hourly;
   final List<DailyWeather> daily;
 
-  /// Units the response was requested in (fixed for this snapshot).
-  final bool fahrenheit;
-  final bool windKmh;
-
   const WeatherData({
     required this.temperature,
     this.feelsLike,
@@ -104,8 +105,6 @@ class WeatherData {
     this.sunset,
     this.hourly = const [],
     this.daily = const [],
-    this.fahrenheit = false,
-    this.windKmh = false,
   });
 
   /// [hours] hourly entries are kept, starting with the hour of `current.time`
@@ -113,8 +112,6 @@ class WeatherData {
   factory WeatherData.fromJson(
     Map<String, dynamic> json, {
     int hours = 8,
-    bool fahrenheit = false,
-    bool windKmh = false,
   }) {
     final current = json['current'] as Map<String, dynamic>;
     final currentTime = DateTime.tryParse('${current['time']}');
@@ -195,8 +192,6 @@ class WeatherData {
       sunset: sunset,
       hourly: hourly,
       daily: daily,
-      fahrenheit: fahrenheit,
-      windKmh: windKmh,
     );
   }
 

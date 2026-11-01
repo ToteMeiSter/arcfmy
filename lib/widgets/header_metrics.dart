@@ -75,6 +75,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
   String? _locationKey;
   DateTime? _weatherFetchedAt;
   String? _fetchingKey;
+  final _weatherFocus = FocusNode(debugLabel: 'headerWeather');
 
   @override
   void initState() {
@@ -120,7 +121,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     _timerMinutes = context.read<SettingsService>().weatherRefreshMinutes;
     _weatherTimer?.cancel();
     _weatherTimer = Timer.periodic(
-      Duration(minutes: _timerMinutes > 0 ? _timerMinutes : WEATHER_REFRESH_DEFAULT),
+      Duration(minutes: _timerMinutes),
       (_) => _fetchWeather(force: true),
     );
   }
@@ -169,10 +170,9 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     }
   }
 
-  /// Location and units: a change of any of them needs a new request.
+  /// Only the location needs a new request: units are converted locally.
   String _requestKey(SettingsService settings) =>
-      '${settings.weatherCity}|${settings.weatherLatitude},${settings.weatherLongitude}'
-      '|${settings.weatherFahrenheit}|${settings.weatherWindKmh}';
+      '${settings.weatherCity}|${settings.weatherLatitude},${settings.weatherLongitude}';
 
   Future<void> _fetchWeather({bool force = false}) async {
     if (!mounted) return;
@@ -193,16 +193,12 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     }
     _fetchingKey = key;
     try {
-      final fahrenheit = settings.weatherFahrenheit;
-      final windKmh = settings.weatherWindKmh;
       final uri = Uri.https(
         'api.open-meteo.com',
         '/v1/forecast',
         weatherQuery(
           latitude: settings.weatherLatitude,
           longitude: settings.weatherLongitude,
-          fahrenheit: fahrenheit,
-          windKmh: windKmh,
         ),
       );
       final response = await (widget.httpClient?.get(uri) ?? http.get(uri))
@@ -211,8 +207,6 @@ class _HeaderMetricsState extends State<HeaderMetrics>
         throw const HttpException('Weather unavailable');
       final weather = WeatherData.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>,
-        fahrenheit: fahrenheit,
-        windKmh: windKmh,
       );
       if (mounted && _locationKey == key) {
         setState(() {
@@ -222,11 +216,13 @@ class _HeaderMetricsState extends State<HeaderMetrics>
         });
         _weatherRetryTimer?.cancel();
         _weatherRetryTimer = null;
+        // The next scheduled refresh comes one interval after this answer.
+        if (_weatherTimer != null) _startWeatherTimer();
       }
     } catch (_) {
-      if (mounted) setState(() => _weather = null);
-      // No network at load time: retry soon instead of waiting 45 min.
-      if (mounted && _wantWeather) {
+      // A failed refresh keeps the previous data (a city change already
+      // cleared it). Retry soon instead of waiting a whole interval.
+      if (mounted && _locationKey == key && _wantWeather) {
         _weatherRetryTimer ??= Timer(const Duration(minutes: 2), () {
           _weatherRetryTimer = null;
           _fetchWeather();
@@ -241,6 +237,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _stop();
+    _weatherFocus.dispose();
     super.dispose();
   }
 
@@ -266,10 +263,17 @@ class _HeaderMetricsState extends State<HeaderMetrics>
         if (mounted && _weatherTimer != null) _startWeatherTimer();
       });
     }
+    final showWeather =
+        settings.showWeatherInStatusBar && online && _weather != null;
+    if (!showWeather && _weatherFocus.hasFocus) {
+      // The focused element goes away: hand the focus to a neighbour instead
+      // of dropping it to the root.
+      if (!_weatherFocus.previousFocus()) _weatherFocus.nextFocus();
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (settings.showWeatherInStatusBar && online && _weather != null)
+        if (showWeather)
           _buildWeather(context, settings, _weather!),
         if (settings.showCpuInStatusBar && _cpuPercent != null) ...[
           Text('CPU $_cpuPercent%', style: HeaderStyle.text),
@@ -286,27 +290,39 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     WeatherData weather,
   ) {
     final city = _city ?? settings.weatherCity;
+    final fahrenheit = settings.weatherFahrenheit;
+    double convert(double celsius) =>
+        fahrenheit ? celsiusToFahrenheit(celsius) : celsius;
     final parts = <String>[
       if (settings.weatherShowCity) city,
-      if (settings.weatherShowTemperature) '${weather.temperature.round()}°',
+      if (settings.weatherShowTemperature)
+        '${convert(weather.temperature).round()}°',
       if (settings.weatherShowFeelsLike && weather.feelsLike != null)
         AppLocalizations.of(context)!.weatherFeelsShort(
-          weather.feelsLike!.round().toString(),
+          convert(weather.feelsLike!).round().toString(),
         ),
     ];
+    // A focusable element is never empty: the icon is the fallback.
+    final showIcon = settings.weatherShowIcon || parts.isEmpty;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         AppBarFocusRing(
           semanticLabel: city,
+          focusNode: _weatherFocus,
           onPressed: () => showDialog<void>(
             context: context,
-            builder: (_) => WeatherDetailsDialog(city: city, data: weather),
+            builder: (_) => WeatherDetailsDialog(
+              city: city,
+              data: weather,
+              fahrenheit: fahrenheit,
+              windKmh: settings.weatherWindKmh,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (settings.weatherShowIcon) ...[
+              if (showIcon) ...[
                 Icon(
                   weather.icon,
                   color: Colors.white,

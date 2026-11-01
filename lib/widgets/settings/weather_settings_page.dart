@@ -57,9 +57,8 @@ class _WeatherSettingsPageState extends State<WeatherSettingsPage> {
     final style = Theme.of(context).textTheme.bodyMedium;
 
     Widget field(String label, IconData icon, bool value,
-        Future<void> Function(bool) set, {bool autofocus = false}) {
+        Future<void> Function(bool) set) {
       return RoundedSwitchListTile(
-        autofocus: autofocus,
         value: value,
         onChanged: (next) => _toggleField(settings, value, next, set),
         title: Text(label, style: style),

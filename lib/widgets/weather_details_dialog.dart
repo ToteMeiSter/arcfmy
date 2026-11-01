@@ -10,10 +10,20 @@ import 'package:flutter/services.dart';
 /// network request. D-pad: up/down scroll, the last down reaches «Close»,
 /// BACK closes (HOME closes it through the root navigator in FLauncher).
 class WeatherDetailsDialog extends StatefulWidget {
-  const WeatherDetailsDialog({super.key, required this.city, this.data});
+  const WeatherDetailsDialog({
+    super.key,
+    required this.city,
+    this.data,
+    this.fahrenheit = false,
+    this.windKmh = false,
+  });
 
   final String city;
   final WeatherData? data;
+
+  /// Display units; the data itself is always °C, m/s, hPa.
+  final bool fahrenheit;
+  final bool windKmh;
 
   @override
   State<WeatherDetailsDialog> createState() => _WeatherDetailsDialogState();
@@ -77,7 +87,11 @@ class _WeatherDetailsDialogState extends State<WeatherDetailsDialog> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(l.weatherNoData),
                   )
-                : _Body(data: data),
+                : _Body(
+                    data: data,
+                    fahrenheit: widget.fahrenheit,
+                    windKmh: widget.windKmh,
+                  ),
           ),
         ),
       ),
@@ -117,19 +131,30 @@ class _WeatherDetailsDialogState extends State<WeatherDetailsDialog> {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.data});
+  const _Body({
+    required this.data,
+    required this.fahrenheit,
+    required this.windKmh,
+  });
 
   final WeatherData data;
+  final bool fahrenheit;
+  final bool windKmh;
 
-  String _temp(double value) => '${value.round()}°';
+  double _convert(double celsius) =>
+      fahrenheit ? celsiusToFahrenheit(celsius) : celsius;
+
+  String _temp(double value) => '${_convert(value).round()}°';
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final material = MaterialLocalizations.of(context);
     final theme = Theme.of(context).textTheme;
-    final tempUnit = data.fahrenheit ? '°F' : '°C';
-    final windUnit = data.windKmh ? l.weatherWindKmh : l.weatherWindMs;
+    final tempUnit = fahrenheit ? '°F' : '°C';
+    final windUnit = windKmh ? l.weatherWindKmh : l.weatherWindMs;
+    // Russian forecasts give pressure in mm Hg, other locales in hPa.
+    final mmHg = Localizations.localeOf(context).languageCode == 'ru';
     String time(DateTime t) => material.formatTimeOfDay(
       TimeOfDay.fromDateTime(t),
       alwaysUse24HourFormat: true,
@@ -162,7 +187,7 @@ class _Body extends StatelessWidget {
       if (wind != null)
         fact(
           l.weatherWind,
-          '${wind.toStringAsFixed(data.windKmh ? 0 : 1)} $windUnit',
+          '${(windKmh ? msToKmh(wind) : wind).toStringAsFixed(windKmh ? 0 : 1)} $windUnit',
           lead: data.windDirection == null
               ? null
               // Open-Meteo gives the direction the wind comes FROM.
@@ -174,7 +199,11 @@ class _Body extends StatelessWidget {
       if (data.pressure != null)
         fact(
           l.weatherPressure,
-          l.weatherPressureValue(data.pressure!.round().toString()),
+          l.weatherPressureValue(
+            (mmHg ? hpaToMmHg(data.pressure!) : data.pressure!)
+                .round()
+                .toString(),
+          ),
         ),
       if (data.precipitation != null)
         fact(
@@ -205,11 +234,11 @@ class _Body extends StatelessWidget {
           children: [
             Icon(data.icon, size: 48, color: Colors.white),
             const SizedBox(width: 12),
-            Text('${data.temperature.round()}$tempUnit', style: theme.headlineMedium),
+            Text('${_convert(data.temperature).round()}$tempUnit', style: theme.headlineMedium),
             if (data.feelsLike != null) ...[
               const SizedBox(width: 12),
               Text(
-                l.weatherFeelsShort(data.feelsLike!.round().toString()),
+                l.weatherFeelsShort(_convert(data.feelsLike!).round().toString()),
                 style: theme.bodyMedium,
               ),
             ],

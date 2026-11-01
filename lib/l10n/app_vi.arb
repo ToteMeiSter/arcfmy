@@ -258,7 +258,6 @@
     "weatherMinutes": "{minutes} phút",
     "weatherFeelsShort": "cảm giác {temp}°",
     "weatherDetailsTitle": "Thời tiết: {city}",
-    "weatherNow": "Hiện tại",
     "weatherHumidity": "Độ ẩm",
     "weatherWind": "Gió",
     "weatherPressure": "Áp suất",

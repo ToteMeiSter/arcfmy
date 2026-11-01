@@ -214,7 +214,6 @@
     "weatherMinutes": "{minutes} dk",
     "weatherFeelsShort": "hiss. {temp}°",
     "weatherDetailsTitle": "Hava durumu: {city}",
-    "weatherNow": "Şimdi",
     "weatherHumidity": "Nem",
     "weatherWind": "Rüzgar",
     "weatherPressure": "Basınç",

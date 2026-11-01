@@ -842,9 +842,6 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get weatherNow => 'Сейчас';
-
-  @override
   String get weatherHumidity => 'Влажность';
 
   @override
@@ -855,7 +852,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String weatherPressureValue(String value) {
-    return '$value гПа';
+    return '$value мм рт. ст.';
   }
 
   @override

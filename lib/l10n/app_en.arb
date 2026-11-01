@@ -398,7 +398,6 @@
         }
       }
     },
-    "weatherNow": "Now",
     "weatherHumidity": "Humidity",
     "weatherWind": "Wind",
     "weatherPressure": "Pressure",

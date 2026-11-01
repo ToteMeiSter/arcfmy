@@ -1652,12 +1652,6 @@ abstract class AppLocalizations {
   /// **'Weather: {city}'**
   String weatherDetailsTitle(String city);
 
-  /// No description provided for @weatherNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Now'**
-  String get weatherNow;
-
   /// No description provided for @weatherHumidity.
   ///
   /// In en, this message translates to:

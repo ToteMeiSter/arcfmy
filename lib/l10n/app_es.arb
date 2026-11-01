@@ -271,7 +271,6 @@
     "weatherMinutes": "{minutes} min",
     "weatherFeelsShort": "sens. {temp}°",
     "weatherDetailsTitle": "Clima: {city}",
-    "weatherNow": "Ahora",
     "weatherHumidity": "Humedad",
     "weatherWind": "Viento",
     "weatherPressure": "Presión",

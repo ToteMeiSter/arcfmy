@@ -308,7 +308,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
     // HOME closes everything opened above the home page (SettingsPanel, nested
     // dialogs). They sit in the root navigator; SettingsPanel's own Navigator
     // goes away with its dialog route.
-    Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    closeRoutesAboveHome(context);
     if (!_scrollController.hasClients) return;
     final generation = ++_homePressGeneration;
     await _animateScrollTo(_scrollController.position.minScrollExtent);
@@ -1206,3 +1206,7 @@ class _CinematicScrimPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+/// Closes every route above the home page through the root navigator.
+void closeRoutesAboveHome(BuildContext context) =>
+    Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
