@@ -33,10 +33,10 @@ void main() {
     expect(data.hourly.first.precipitationProbability, 10);
   });
 
-  test('daily has 5 days with min, max, code and rain chance', () {
+  test('daily has 7 days with min, max, code and rain chance', () {
     final data = WeatherData.fromJson(weatherFixture());
 
-    expect(data.daily, hasLength(5));
+    expect(data.daily, hasLength(7));
     expect(data.daily[1].date, DateTime(2026, 11, 2));
     expect(data.daily[1].min, 29.0);
     expect(data.daily[1].max, 34.5);
@@ -63,7 +63,7 @@ void main() {
     expect(query['temperature_unit'], 'celsius');
     expect(query['wind_speed_unit'], 'ms');
     expect(query['timezone'], 'auto');
-    expect(query['forecast_days'], '5');
+    expect(query['forecast_days'], '7');
     expect(query['current'], contains('apparent_temperature'));
     expect(query['current'], contains('is_day'));
     expect(query['hourly'], contains('precipitation_probability'));

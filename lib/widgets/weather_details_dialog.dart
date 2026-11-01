@@ -4,11 +4,11 @@ import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/widgets/focus_aware_app_bar.dart';
 import 'package:flauncher/widgets/weather_data.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 /// Detailed weather from the data the header already fetched. It makes no
-/// network request. D-pad: up/down scroll, the last down reaches «Close»,
-/// BACK closes (HOME closes it through the root navigator in FLauncher).
+/// network request. Everything fits the screen without scrolling; «Close» is
+/// focused on open. BACK closes (HOME closes it through the root navigator in
+/// FLauncher).
 class WeatherDetailsDialog extends StatefulWidget {
   const WeatherDetailsDialog({
     super.key,
@@ -30,104 +30,118 @@ class WeatherDetailsDialog extends StatefulWidget {
 }
 
 class _WeatherDetailsDialogState extends State<WeatherDetailsDialog> {
-  final _scroll = ScrollController();
-  final _bodyFocus = FocusNode(debugLabel: 'weatherDetailsBody');
-  final _closeFocus = FocusNode(debugLabel: 'weatherDetailsClose');
-
-  @override
-  void dispose() {
-    _scroll.dispose();
-    _bodyFocus.dispose();
-    _closeFocus.dispose();
-    super.dispose();
-  }
-
-  KeyEventResult _onBodyKey(FocusNode _, KeyEvent event) {
-    if (event is KeyUpEvent) return KeyEventResult.ignored;
-    final down = event.logicalKey == LogicalKeyboardKey.arrowDown;
-    final up = event.logicalKey == LogicalKeyboardKey.arrowUp;
-    if (!down && !up) return KeyEventResult.ignored;
-    if (!_scroll.hasClients) {
-      if (down) _closeFocus.requestFocus();
-      return KeyEventResult.handled;
-    }
-    final position = _scroll.position;
-    if (down && position.pixels >= position.maxScrollExtent - 0.5) {
-      _closeFocus.requestFocus();
-    } else {
-      _scroll.animateTo(
-        (position.pixels + (down ? 120 : -120)).clamp(
-          position.minScrollExtent,
-          position.maxScrollExtent,
-        ),
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-      );
-    }
-    return KeyEventResult.handled;
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
     final data = widget.data;
-    return AlertDialog(
-      title: Text(l.weatherDetailsTitle(widget.city)),
-      content: SizedBox(
-        width: 640,
-        child: Focus(
-          focusNode: _bodyFocus,
-          autofocus: true,
-          onKeyEvent: _onBodyKey,
-          child: SingleChildScrollView(
-            controller: _scroll,
-            child: data == null
-                ? Padding(
+    final bodyWidth = _bodyWidth(data);
+    // The panel starts below the header bar (status bar + toolbar), so it
+    // never covers the header.
+    final top = MediaQuery.paddingOf(context).top + kToolbarHeight + 8;
+    // No scrolling on a TV: the whole panel is scaled down to the screen
+    // (MediaQuery size and text scale) instead of being cut or scrolled.
+    return Dialog(
+      insetPadding: EdgeInsets.fromLTRB(12, top, 12, 12),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: SizedBox(
+            width: bodyWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.weatherDetailsTitle(widget.city),
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                if (data == null)
+                  Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(l.weatherNoData),
                   )
-                : _Body(
+                else
+                  _Body(
                     data: data,
                     fahrenheit: widget.fahrenheit,
                     windKmh: widget.windKmh,
+                    width: bodyWidth,
                   ),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    autofocus: true,
+                    onPressed: () => Navigator.pop(context),
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.focused)
+                            ? primary.withValues(alpha: 0.25)
+                            : null,
+                      ),
+                      side: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.focused)
+                            ? BorderSide(color: primary, width: 2)
+                            : null,
+                      ),
+                    ),
+                    child: Text(l.weatherClose),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-      actions: [
-        Focus(
-          canRequestFocus: false,
-          skipTraversal: true,
-          onKeyEvent: (_, event) {
-            if (event is KeyDownEvent &&
-                event.logicalKey == LogicalKeyboardKey.arrowUp) {
-              _bodyFocus.requestFocus();
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-          child: TextButton(
-            focusNode: _closeFocus,
-            onPressed: () => Navigator.pop(context),
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.focused)
-                    ? primary.withValues(alpha: 0.25)
-                    : null,
-              ),
-              side: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.focused)
-                    ? BorderSide(color: primary, width: 2)
-                    : null,
-              ),
-            ),
-            child: Text(l.weatherClose),
+    );
+  }
+}
+
+/// One width for every forecast column (hours and days). The content is as
+/// wide as the longer of the two rows, so there is no empty strip on the right.
+const double _columnWidth = 66;
+
+double _bodyWidth(WeatherData? data) {
+  final slots = data == null
+      ? 6
+      : math.max(6, math.max(data.hourly.length, data.daily.length));
+  return _columnWidth * slots;
+}
+
+/// One forecast column: label (hour or date), icon, then text lines. Hours
+/// and days are both built from it.
+class _ForecastColumn extends StatelessWidget {
+  const _ForecastColumn({
+    required this.label,
+    required this.icon,
+    required this.lines,
+  });
+
+  final String label;
+  final IconData icon;
+  final List<Widget> lines;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: _columnWidth,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Icon(icon, size: HeaderStyle.iconSize),
+        ...lines.map(
+          (w) => DefaultTextStyle.merge(
+            style: Theme.of(context).textTheme.bodySmall,
+            child: w,
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
 }
 
 class _Body extends StatelessWidget {
@@ -135,14 +149,20 @@ class _Body extends StatelessWidget {
     required this.data,
     required this.fahrenheit,
     required this.windKmh,
+    required this.width,
   });
 
+  final double width;
   final WeatherData data;
   final bool fahrenheit;
   final bool windKmh;
 
   double _convert(double celsius) =>
       fahrenheit ? celsiusToFahrenheit(celsius) : celsius;
+
+  /// DD.MM with a leading zero, independent of the locale.
+  String _shortDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}';
 
   String _temp(double value) => '${_convert(value).round()}°';
 
@@ -161,9 +181,9 @@ class _Body extends StatelessWidget {
     );
 
     Widget fact(String label, String value, {Widget? lead}) => SizedBox(
-      width: 190,
+      width: width / 3,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -172,7 +192,7 @@ class _Body extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (lead != null) ...[lead, const SizedBox(width: 4)],
-                Flexible(child: Text(value, style: theme.bodyLarge)),
+                Flexible(child: Text(value, style: theme.bodyMedium)),
               ],
             ),
           ],
@@ -193,7 +213,7 @@ class _Body extends StatelessWidget {
               // Open-Meteo gives the direction the wind comes FROM.
               : Transform.rotate(
                   angle: (data.windDirection! + 180) * math.pi / 180,
-                  child: const Icon(Icons.arrow_upward, size: 18),
+                  child: const Icon(Icons.arrow_upward, size: 14),
                 ),
         ),
       if (data.pressure != null)
@@ -216,12 +236,12 @@ class _Body extends StatelessWidget {
     ];
 
     Widget section(String title, Widget child) => Padding(
-      padding: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.only(top: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: theme.titleSmall),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           child,
         ],
       ),
@@ -232,11 +252,11 @@ class _Body extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(data.icon, size: 48, color: Colors.white),
-            const SizedBox(width: 12),
-            Text('${_convert(data.temperature).round()}$tempUnit', style: theme.headlineMedium),
+            Icon(data.icon, size: 32, color: Colors.white),
+            const SizedBox(width: 8),
+            Text('${_convert(data.temperature).round()}$tempUnit', style: theme.headlineSmall),
             if (data.feelsLike != null) ...[
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Text(
                 l.weatherFeelsShort(_convert(data.feelsLike!).round().toString()),
                 style: theme.bodyMedium,
@@ -244,7 +264,7 @@ class _Body extends StatelessWidget {
             ],
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         if (facts.isEmpty)
           Text(l.weatherNoData)
         else
@@ -253,23 +273,20 @@ class _Body extends StatelessWidget {
           l.weatherHourly,
           data.hourly.isEmpty
               ? Text(l.weatherNoData)
-              : Wrap(
+              : Row(
                   children: [
                     for (final h in data.hourly)
-                      SizedBox(
-                        width: 76,
-                        child: Column(
-                          children: [
-                            Text(time(h.time), style: theme.bodySmall),
-                            Icon(weatherIconFor(h.code, h.isDay), size: HeaderStyle.iconSize),
-                            Text(_temp(h.temperature)),
-                            if (h.precipitationProbability != null)
-                              Text(
-                                '${h.precipitationProbability}%',
-                                style: theme.bodySmall,
-                              ),
-                          ],
-                        ),
+                      _ForecastColumn(
+                        label: time(h.time),
+                        icon: weatherIconFor(h.code, h.isDay),
+                        lines: [
+                          Text(_temp(h.temperature)),
+                          if (h.precipitationProbability != null)
+                            Text(
+                              '${h.precipitationProbability}%',
+                              style: theme.bodySmall,
+                            ),
+                        ],
                       ),
                   ],
                 ),
@@ -278,30 +295,20 @@ class _Body extends StatelessWidget {
           l.weatherDaily,
           data.daily.isEmpty
               ? Text(l.weatherNoData)
-              : Column(
+              : Row(
                   children: [
                     for (final d in data.daily)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 120,
-                              child: Text(material.formatShortMonthDay(d.date)),
+                      _ForecastColumn(
+                        label: _shortDate(d.date),
+                        icon: weatherIconFor(d.code, true),
+                        lines: [
+                          Text('${_temp(d.min)} … ${_temp(d.max)}'),
+                          if (d.precipitationProbability != null)
+                            Text(
+                              '${d.precipitationProbability}%',
+                              style: theme.bodySmall,
                             ),
-                            Icon(weatherIconFor(d.code, true), size: HeaderStyle.iconSize),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              width: 120,
-                              child: Text('${_temp(d.min)} … ${_temp(d.max)}'),
-                            ),
-                            if (d.precipitationProbability != null)
-                              Text(
-                                '${d.precipitationProbability}%',
-                                style: theme.bodySmall,
-                              ),
-                          ],
-                        ),
+                        ],
                       ),
                   ],
                 ),
