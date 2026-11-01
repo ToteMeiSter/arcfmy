@@ -14,8 +14,9 @@ void main() {
     bool fahrenheit = false,
     bool windKmh = false,
     Locale? locale,
+    Size size = const Size(1920, 1080),
   }) async {
-    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
@@ -64,7 +65,7 @@ void main() {
     expect(find.text('07:00'), findsOneWidget);
     expect(find.text('14:00'), findsOneWidget);
     expect(find.text('Next days'), findsOneWidget);
-    // 5 daily rows: min … max
+    // 5 daily columns: min … max
     expect(find.textContaining(' … '), findsNWidgets(5));
     expect(find.text('No weather data'), findsNothing);
   });
@@ -118,46 +119,81 @@ void main() {
     expect(find.byType(WeatherDetailsDialog), findsNothing);
   });
 
-  testWidgets('D-pad: down scrolls, then reaches Close; up goes back; OK closes', (
-    tester,
-  ) async {
-    // Small screen so the content needs scrolling.
+  testWidgets('«Close» is focused on open; OK closes', (tester) async {
     await open(tester, WeatherData.fromJson(weatherFixture()));
-    tester.view.physicalSize = const Size(1000, 500);
-    await tester.pumpAndSettle();
 
-    final scrollable = tester.state<ScrollableState>(
-      find.descendant(
-        of: find.byType(WeatherDetailsDialog),
-        matching: find.byType(Scrollable),
-      ),
+    final closeElement = find
+        .descendant(
+          of: find.byType(WeatherDetailsDialog),
+          matching: find.byType(TextButton),
+        )
+        .evaluate()
+        .single;
+    final focused = FocusManager.instance.primaryFocus!;
+    expect(
+      focused.context!.findAncestorWidgetOfExactType<TextButton>(),
+      same(closeElement.widget),
+      reason: 'primary focus sits inside the Close button',
     );
-    expect(scrollable.position.maxScrollExtent, greaterThan(0));
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.pumpAndSettle();
-    expect(scrollable.position.pixels, greaterThan(0));
-
-    for (var i = 0; i < 20; i++) {
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-      await tester.pumpAndSettle();
-    }
-    final closeButton = tester.widget<TextButton>(
-      find.descendant(
-        of: find.byType(WeatherDetailsDialog),
-        matching: find.byType(TextButton),
-      ),
-    );
-    expect(closeButton.focusNode!.hasFocus, isTrue);
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
-    await tester.pumpAndSettle();
-    expect(closeButton.focusNode!.hasFocus, isFalse);
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.pumpAndSettle();
-    expect(closeButton.focusNode!.hasFocus, isTrue);
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
     expect(find.byType(WeatherDetailsDialog), findsNothing);
   });
+
+  testWidgets('days: 5 columns in one row, dates as DD.MM', (tester) async {
+    await open(tester, WeatherData.fromJson(weatherFixture()));
+
+    final dates = find.textContaining(RegExp(r'^\d\d\.\d\d$'));
+    expect(dates, findsNWidgets(5));
+    final ys = {
+      for (var i = 0; i < 5; i++) tester.getTopLeft(dates.at(i)).dy,
+    };
+    expect(ys.length, 1, reason: 'all day columns share one y');
+    final xs = [for (var i = 0; i < 5; i++) tester.getTopLeft(dates.at(i)).dx];
+    expect(xs, orderedEquals([...xs]..sort()));
+    final first = WeatherData.fromJson(weatherFixture()).daily.first.date;
+    final text =
+        '${first.day.toString().padLeft(2, '0')}.${first.month.toString().padLeft(2, '0')}';
+    expect(find.text(text), findsOneWidget);
+    expect(find.byType(Scrollable), findsNothing);
+  });
+
+  // Logical sizes (px / density): projector 1920x1080 @240 = 1280x720,
+  // TCL G07 1920x1080 @320 = 960x540 (wm size / wm density, read-only);
+  // #ozmsk was unreachable, covered by the strictest 960x540 and 1920x1080.
+  for (final (name, size) in const [
+    ('projector', Size(1280, 720)),
+    ('tclmsk', Size(960, 540)),
+    ('ozmsk (assumed)', Size(1920, 1080)),
+  ]) {
+    testWidgets('fits $name $size without overflow or scrolling', (
+      tester,
+    ) async {
+      await open(tester, WeatherData.fromJson(weatherFixture()), size: size);
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(Scrollable), findsNothing);
+      final rect = tester.getRect(find.byType(Dialog));
+      expect(rect.top, greaterThanOrEqualTo(0));
+      expect(rect.bottom, lessThanOrEqualTo(size.height));
+      expect(rect.left, greaterThanOrEqualTo(0));
+      expect(rect.right, lessThanOrEqualTo(size.width));
+      expect(
+        tester
+            .getRect(
+              find.descendant(
+                of: find.byType(WeatherDetailsDialog),
+                matching: find.byType(TextButton),
+              ),
+            )
+            .bottom,
+        lessThanOrEqualTo(size.height),
+      );
+      expect(tester.getRect(find.text('Weather: Казань')).top, greaterThan(0));
+      expect(
+        tester.getRect(find.text('14:00')).right,
+        lessThanOrEqualTo(size.width),
+      );
+    });
+  }
 }
