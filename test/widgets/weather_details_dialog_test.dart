@@ -44,7 +44,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows now, sunrise/sunset, hourly and 5 days', (tester) async {
+  testWidgets('shows now, sunrise/sunset, hourly and 7 days', (tester) async {
     await open(
       tester,
       WeatherData.fromJson(weatherFixture()),
@@ -65,8 +65,8 @@ void main() {
     expect(find.text('07:00'), findsOneWidget);
     expect(find.text('14:00'), findsOneWidget);
     expect(find.text('Next days'), findsOneWidget);
-    // 5 daily columns: min … max
-    expect(find.textContaining(' … '), findsNWidgets(5));
+    // 7 daily columns: min … max
+    expect(find.textContaining(' … '), findsNWidgets(7));
     expect(find.text('No weather data'), findsNothing);
   });
 
@@ -140,16 +140,16 @@ void main() {
     expect(find.byType(WeatherDetailsDialog), findsNothing);
   });
 
-  testWidgets('days: 5 columns in one row, dates as DD.MM', (tester) async {
+  testWidgets('days: 7 columns in one row, dates as DD.MM', (tester) async {
     await open(tester, WeatherData.fromJson(weatherFixture()));
 
     final dates = find.textContaining(RegExp(r'^\d\d\.\d\d$'));
-    expect(dates, findsNWidgets(5));
+    expect(dates, findsNWidgets(7));
     final ys = {
-      for (var i = 0; i < 5; i++) tester.getTopLeft(dates.at(i)).dy,
+      for (var i = 0; i < 7; i++) tester.getTopLeft(dates.at(i)).dy,
     };
     expect(ys.length, 1, reason: 'all day columns share one y');
-    final xs = [for (var i = 0; i < 5; i++) tester.getTopLeft(dates.at(i)).dx];
+    final xs = [for (var i = 0; i < 7; i++) tester.getTopLeft(dates.at(i)).dx];
     expect(xs, orderedEquals([...xs]..sort()));
     final first = WeatherData.fromJson(weatherFixture()).daily.first.date;
     final text =
@@ -173,7 +173,13 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.byType(Scrollable), findsNothing);
-      final rect = tester.getRect(find.byType(Dialog));
+      // The panel itself (the Dialog widget spans the route area).
+      final rect = tester.getRect(
+        find.descendant(
+          of: find.byType(WeatherDetailsDialog),
+          matching: find.byType(FittedBox),
+        ),
+      );
       expect(rect.top, greaterThanOrEqualTo(0));
       expect(rect.bottom, lessThanOrEqualTo(size.height));
       expect(rect.left, greaterThanOrEqualTo(0));
@@ -190,6 +196,34 @@ void main() {
         lessThanOrEqualTo(size.height),
       );
       expect(tester.getRect(find.text('Weather: Казань')).top, greaterThan(0));
+      // 7 day columns on one y, 8 hour columns, same column pitch.
+      final dates = find.textContaining(RegExp(r'^\d\d\.\d\d$'));
+      expect(dates, findsNWidgets(7));
+      expect({
+        for (var i = 0; i < 7; i++) tester.getTopLeft(dates.at(i)).dy,
+      }, hasLength(1));
+      final dayPitch =
+          tester.getTopLeft(dates.at(1)).dx - tester.getTopLeft(dates.at(0)).dx;
+      final hours = find.textContaining(RegExp(r'^\d\d:\d\d$'));
+      final hx = [
+        for (final t in ['07:00', '08:00'])
+          tester.getTopLeft(find.text(t)).dx,
+      ];
+      expect((hx[1] - hx[0]) - dayPitch, closeTo(0, 0.01));
+      expect(hours, findsWidgets);
+      // Primary focus is «Close».
+      expect(
+        FocusManager.instance.primaryFocus!.context!
+            .findAncestorWidgetOfExactType<TextButton>(),
+        isNotNull,
+      );
+      // Panel top is below the header bar.
+      expect(rect.top, greaterThanOrEqualTo(kToolbarHeight));
+      // ignore: avoid_print
+      print('PANEL $name ${size.width.toInt()}x${size.height.toInt()}: '
+          '${rect.width.toStringAsFixed(0)}x${rect.height.toStringAsFixed(0)} '
+          'area=${(rect.width * rect.height).toStringAsFixed(0)} '
+          'top=${rect.top.toStringAsFixed(0)}');
       expect(
         tester.getRect(find.text('14:00')).right,
         lessThanOrEqualTo(size.width),

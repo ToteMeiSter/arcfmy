@@ -37,7 +37,7 @@ Map<String, String> weatherQuery({
       'weather_code,temperature_2m_max,temperature_2m_min,'
       'precipitation_probability_max,sunrise,sunset',
   'timezone': 'auto',
-  'forecast_days': '5',
+  'forecast_days': '7',
   'temperature_unit': 'celsius',
   'wind_speed_unit': 'ms',
 };
