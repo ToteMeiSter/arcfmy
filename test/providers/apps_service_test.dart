@@ -21,6 +21,7 @@ import 'package:flauncher/database.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../mocks.dart';
 import '../mocks.mocks.dart';
@@ -138,6 +139,143 @@ void main() {
         )
       ]));
       verify(database.deleteApps(["uninstalled.app", "disabled.app"]));
+    });
+    test("keeps a TV input tile and does not ask the system whether it is installed", () async {
+      final channel = MockFLauncherChannel();
+      final database = MockFLauncherDatabase();
+      const inputId = 'tvinput:com.tv/.hdmi.HDMIInputService/HW5';
+      when(channel.getApplications()).thenAnswer((_) => Future.value([
+            {
+              'packageName': inputId,
+              'name': 'HDMI 1',
+              'version': '',
+              'sideloaded': false,
+              'action': 'content://android.media.tv/passthrough/x',
+            }
+          ]));
+      when(database.getApplications()).thenAnswer((_) => Future.value([
+            fakeApp(packageName: inputId, name: "HDMI 1", version: "", hidden: true),
+          ]));
+      when(database.getCategories()).thenAnswer((_) => Future.value([]));
+      when(database.getAppsCategories()).thenAnswer((_) => Future.value([]));
+      when(database.getLauncherSpacers()).thenAnswer((_) => Future.value([]));
+      when(database.transaction(any)).thenAnswer((realInvocation) => realInvocation.positionalArguments[0]());
+      when(database.wasCreated).thenReturn(false);
+      final appsService = AppsService(channel, database);
+      await untilCalled(channel.addAppsChangedListener(any));
+
+      verifyNever(channel.applicationExists(any));
+      verify(database.deleteApps([]));
+      final app = appsService.applications.firstWhere((a) => a.packageName == inputId);
+      expect(app.hidden, isTrue);
+      expect(app.action, 'content://android.media.tv/passthrough/x');
+
+      await appsService.launchApp(app);
+      verify(channel.launchActivityFromAction('content://android.media.tv/passthrough/x'));
+      verifyNever(channel.launchApp(any));
+    });
+  });
+
+  group("tile placement on an existing database", () {
+    const inputId = 'tvinput:com.tv/.hdmi.HDMIInputService/HW5';
+    late Category row;
+
+    Future<MockFLauncherDatabase> start({
+      required List<Map<String, Object?>> system,
+      required List<App> stored,
+    }) async {
+      final channel = MockFLauncherChannel();
+      final database = MockFLauncherDatabase();
+      when(channel.getApplications()).thenAnswer((_) => Future.value(system));
+      when(channel.applicationExists(any)).thenAnswer((_) => Future.value(true));
+      when(database.getApplications()).thenAnswer((_) => Future.value(stored));
+      when(database.getCategories()).thenAnswer((_) => Future.value([row]));
+      when(database.getAppsCategories()).thenAnswer((_) => Future.value([]));
+      when(database.getLauncherSpacers()).thenAnswer((_) => Future.value([]));
+      when(database.nextAppCategoryOrder(any)).thenAnswer((_) => Future.value(0));
+      when(database.insertAppsCategories(any)).thenAnswer((_) => Future.value());
+      when(database.transaction(any)).thenAnswer((i) => i.positionalArguments[0]());
+      when(database.wasCreated).thenReturn(false);
+      AppsService(channel, database);
+      await untilCalled(channel.addAppsChangedListener(any));
+      return database;
+    }
+
+    Map<String, Object?> sys(String id) =>
+        {'packageName': id, 'name': id, 'version': '', 'sideloaded': false};
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      row = fakeCategory(name: 'Приложения', id: 7, type: CategoryType.row, applications: []);
+    });
+
+    test("new app on an existing database is added to the row", () async {
+      final channel = MockFLauncherChannel();
+      final database = MockFLauncherDatabase();
+      var persisted = false;
+      when(channel.getApplications()).thenAnswer((_) => Future.value([sys('old.app'), sys('new.app')]));
+      when(channel.applicationExists(any)).thenAnswer((_) => Future.value(true));
+      when(database.getApplications()).thenAnswer((_) => Future.value(persisted
+          ? [fakeApp(packageName: 'old.app'), fakeApp(packageName: 'new.app')]
+          : [fakeApp(packageName: 'old.app')]));
+      when(database.persistApps(any)).thenAnswer((_) async {
+        persisted = true;
+      });
+      when(database.getCategories()).thenAnswer((_) => Future.value([row]));
+      when(database.getAppsCategories()).thenAnswer((_) => Future.value([]));
+      when(database.getLauncherSpacers()).thenAnswer((_) => Future.value([]));
+      when(database.nextAppCategoryOrder(any)).thenAnswer((_) => Future.value(0));
+      when(database.insertAppsCategories(any)).thenAnswer((_) => Future.value());
+      when(database.transaction(any)).thenAnswer((i) => i.positionalArguments[0]());
+      when(database.wasCreated).thenReturn(false);
+      AppsService(channel, database);
+      await untilCalled(channel.addAppsChangedListener(any));
+
+      final inserted = verify(database.insertAppsCategories(captureAny)).captured.single
+          as List<AppsCategoriesCompanion>;
+      expect(inserted.map((c) => c.appPackageName.value), ['new.app']);
+      expect(inserted.single.categoryId.value, row.id);
+    });
+
+    test("a new hidden app stays out of the row", () async {
+      final channel = MockFLauncherChannel();
+      final database = MockFLauncherDatabase();
+      var persisted = false;
+      when(channel.getApplications()).thenAnswer((_) => Future.value([sys('new.app')]));
+      when(channel.applicationExists(any)).thenAnswer((_) => Future.value(true));
+      when(database.getApplications()).thenAnswer((_) => Future.value(
+          persisted ? [fakeApp(packageName: 'new.app', hidden: true)] : []));
+      when(database.persistApps(any)).thenAnswer((_) async {
+        persisted = true;
+      });
+      when(database.getCategories()).thenAnswer((_) => Future.value([row]));
+      when(database.getAppsCategories()).thenAnswer((_) => Future.value([]));
+      when(database.getLauncherSpacers()).thenAnswer((_) => Future.value([]));
+      when(database.transaction(any)).thenAnswer((i) => i.positionalArguments[0]());
+      when(database.wasCreated).thenReturn(false);
+      AppsService(channel, database);
+      await untilCalled(channel.addAppsChangedListener(any));
+
+      verifyNever(database.insertAppsCategories(any));
+    });
+
+    test("4141 input tiles without a category are placed once; a removed tile stays removed", () async {
+      final system = [sys(inputId)];
+      final first = await start(system: system, stored: [fakeApp(packageName: inputId)]);
+      final inserted = verify(first.insertAppsCategories(captureAny)).captured.single
+          as List<AppsCategoriesCompanion>;
+      expect(inserted.single.appPackageName.value, inputId);
+      expect(inserted.single.categoryId.value, row.id);
+      expect((await SharedPreferences.getInstance()).getBool('tvinput_row_migrated'), isTrue);
+
+      // The owner removed the tile from the row: the record is stored without a category again.
+      final second = await start(system: system, stored: [fakeApp(packageName: inputId)]);
+      verifyNever(second.insertAppsCategories(any));
+    });
+
+    test("a hidden 4141 input tile is not placed by the migration", () async {
+      final database = await start(system: [sys(inputId)], stored: [fakeApp(packageName: inputId, hidden: true)]);
+      verifyNever(database.insertAppsCategories(any));
     });
   });
 
