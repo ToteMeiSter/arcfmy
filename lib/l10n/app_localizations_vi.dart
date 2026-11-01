@@ -795,4 +795,98 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get weatherSearchFailed => 'Tìm kiếm thất bại. Kiểm tra kết nối mạng.';
+
+  @override
+  String get weatherSettings => 'Thời tiết';
+
+  @override
+  String get weatherHeaderFields => 'Hiển thị trên thanh trạng thái';
+
+  @override
+  String get weatherFieldIcon => 'Biểu tượng';
+
+  @override
+  String get weatherFieldCity => 'Thành phố';
+
+  @override
+  String get weatherFieldTemperature => 'Nhiệt độ';
+
+  @override
+  String get weatherFieldFeelsLike => 'Cảm giác như';
+
+  @override
+  String get weatherKeepOneField => 'Phải giữ ít nhất một mục bật';
+
+  @override
+  String get weatherTemperatureUnit => 'Đơn vị nhiệt độ';
+
+  @override
+  String get weatherWindUnit => 'Đơn vị tốc độ gió';
+
+  @override
+  String get weatherWindMs => 'm/s';
+
+  @override
+  String get weatherWindKmh => 'km/h';
+
+  @override
+  String get weatherRefreshInterval => 'Khoảng thời gian cập nhật';
+
+  @override
+  String weatherMinutes(int minutes) {
+    return '$minutes phút';
+  }
+
+  @override
+  String weatherFeelsShort(String temp) {
+    return 'cảm giác $temp°';
+  }
+
+  @override
+  String weatherDetailsTitle(String city) {
+    return 'Thời tiết: $city';
+  }
+
+  @override
+  String get weatherNow => 'Hiện tại';
+
+  @override
+  String get weatherHumidity => 'Độ ẩm';
+
+  @override
+  String get weatherWind => 'Gió';
+
+  @override
+  String get weatherPressure => 'Áp suất';
+
+  @override
+  String weatherPressureValue(String value) {
+    return '$value hPa';
+  }
+
+  @override
+  String get weatherPrecipitation => 'Lượng mưa';
+
+  @override
+  String weatherPrecipitationValue(String value) {
+    return '$value mm';
+  }
+
+  @override
+  String get weatherSunrise => 'Bình minh';
+
+  @override
+  String get weatherSunset => 'Hoàng hôn';
+
+  @override
+  String get weatherHourly => 'Những giờ tới';
+
+  @override
+  String get weatherDaily => 'Những ngày tới';
+
+  @override
+  String get weatherNoData => 'Không có dữ liệu thời tiết';
+
+  @override
+  String get weatherClose => 'Đóng';
 }

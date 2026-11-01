@@ -361,5 +361,68 @@
     "weatherCityName": "City name",
     "weatherSearch": "Search",
     "weatherNoResults": "No cities found",
-    "weatherSearchFailed": "Search failed. Check the network connection."
+    "weatherSearchFailed": "Search failed. Check the network connection.",
+    "weatherSettings": "Weather",
+    "weatherHeaderFields": "Shown in the status bar",
+    "weatherFieldIcon": "Icon",
+    "weatherFieldCity": "City",
+    "weatherFieldTemperature": "Temperature",
+    "weatherFieldFeelsLike": "Feels like",
+    "weatherKeepOneField": "At least one field must stay on",
+    "weatherTemperatureUnit": "Temperature unit",
+    "weatherWindUnit": "Wind speed unit",
+    "weatherWindMs": "m/s",
+    "weatherWindKmh": "km/h",
+    "weatherRefreshInterval": "Update interval",
+    "weatherMinutes": "{minutes} min",
+    "@weatherMinutes": {
+      "placeholders": {
+        "minutes": {
+          "type": "int"
+        }
+      }
+    },
+    "weatherFeelsShort": "feels {temp}°",
+    "@weatherFeelsShort": {
+      "placeholders": {
+        "temp": {
+          "type": "String"
+        }
+      }
+    },
+    "weatherDetailsTitle": "Weather: {city}",
+    "@weatherDetailsTitle": {
+      "placeholders": {
+        "city": {
+          "type": "String"
+        }
+      }
+    },
+    "weatherNow": "Now",
+    "weatherHumidity": "Humidity",
+    "weatherWind": "Wind",
+    "weatherPressure": "Pressure",
+    "weatherPressureValue": "{value} hPa",
+    "@weatherPressureValue": {
+      "placeholders": {
+        "value": {
+          "type": "String"
+        }
+      }
+    },
+    "weatherPrecipitation": "Precipitation",
+    "weatherPrecipitationValue": "{value} mm",
+    "@weatherPrecipitationValue": {
+      "placeholders": {
+        "value": {
+          "type": "String"
+        }
+      }
+    },
+    "weatherSunrise": "Sunrise",
+    "weatherSunset": "Sunset",
+    "weatherHourly": "Next hours",
+    "weatherDaily": "Next days",
+    "weatherNoData": "No weather data",
+    "weatherClose": "Close"
 }

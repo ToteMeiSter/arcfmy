@@ -69,7 +69,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Show weather'), findsOneWidget);
-      expect(find.text('Weather location'), findsOneWidget);
+      // The city moved to System > Weather; only the switch stays here.
+      expect(find.text('Weather location'), findsNothing);
       expect(find.text('Show CPU load'), findsOneWidget);
 
       await tester.ensureVisible(find.text('Show CPU load'));

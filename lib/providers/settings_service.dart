@@ -58,6 +58,17 @@ const String _weatherLongitude = "weather_longitude";
 const String _weatherCity = "weather_city";
 const String _showWeatherInStatusBar = "show_weather_in_status_bar";
 const String _showCpuInStatusBar = "show_cpu_in_status_bar";
+const String _weatherFahrenheit = "weather_fahrenheit";
+const String _weatherWindKmh = "weather_wind_kmh";
+const String _weatherShowIcon = "weather_show_icon";
+const String _weatherShowCity = "weather_show_city";
+const String _weatherShowTemperature = "weather_show_temperature";
+const String _weatherShowFeelsLike = "weather_show_feels_like";
+const String _weatherRefreshMinutes = "weather_refresh_minutes";
+
+/// Allowed header weather refresh intervals, minutes. First-run default 45.
+const List<int> WEATHER_REFRESH_OPTIONS = [15, 30, 45, 60];
+const int WEATHER_REFRESH_DEFAULT = 45;
 
 /// Default of the header weather and CPU switches. On in the mgd fork: the
 /// projector layout is already seeded with both widgets.
@@ -451,6 +462,38 @@ class SettingsService extends ChangeNotifier {
       _sharedPreferences.getBool(_showWeatherInStatusBar) ?? _headerMetricsDefault;
   bool get showCpuInStatusBar =>
       _sharedPreferences.getBool(_showCpuInStatusBar) ?? _headerMetricsDefault;
+
+  bool get weatherFahrenheit =>
+      _sharedPreferences.getBool(_weatherFahrenheit) ?? false;
+  bool get weatherWindKmh => _sharedPreferences.getBool(_weatherWindKmh) ?? false;
+  bool get weatherShowIcon => _sharedPreferences.getBool(_weatherShowIcon) ?? true;
+  bool get weatherShowCity => _sharedPreferences.getBool(_weatherShowCity) ?? true;
+  bool get weatherShowTemperature =>
+      _sharedPreferences.getBool(_weatherShowTemperature) ?? true;
+  bool get weatherShowFeelsLike =>
+      _sharedPreferences.getBool(_weatherShowFeelsLike) ?? false;
+
+  /// One of [WEATHER_REFRESH_OPTIONS]; anything else falls back to the default.
+  int get weatherRefreshMinutes {
+    final value = _sharedPreferences.getInt(_weatherRefreshMinutes);
+    return WEATHER_REFRESH_OPTIONS.contains(value)
+        ? value!
+        : WEATHER_REFRESH_DEFAULT;
+  }
+
+  Future<void> setWeatherFahrenheit(bool value) => set(_weatherFahrenheit, value);
+  Future<void> setWeatherWindKmh(bool value) => set(_weatherWindKmh, value);
+  Future<void> setWeatherShowIcon(bool value) => set(_weatherShowIcon, value);
+  Future<void> setWeatherShowCity(bool value) => set(_weatherShowCity, value);
+  Future<void> setWeatherShowTemperature(bool value) =>
+      set(_weatherShowTemperature, value);
+  Future<void> setWeatherShowFeelsLike(bool value) =>
+      set(_weatherShowFeelsLike, value);
+
+  Future<void> setWeatherRefreshMinutes(int minutes) async {
+    await _sharedPreferences.setInt(_weatherRefreshMinutes, minutes);
+    notifyListeners();
+  }
 
   Future<void> setShowWeatherInStatusBar(bool show) =>
       set(_showWeatherInStatusBar, show);

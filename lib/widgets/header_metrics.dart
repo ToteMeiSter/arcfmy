@@ -4,7 +4,11 @@ import 'dart:io';
 
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/network_service.dart';
+import 'package:flauncher/l10n/app_localizations.dart';
+import 'package:flauncher/widgets/app_bar_focus_ring.dart';
 import 'package:flauncher/widgets/focus_aware_app_bar.dart';
+import 'package:flauncher/widgets/weather_data.dart';
+import 'package:flauncher/widgets/weather_details_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -65,10 +69,9 @@ class _HeaderMetricsState extends State<HeaderMetrics>
   int? _lastTotal;
   int? _lastIdle;
   int? _cpuPercent;
-  int? _temperature;
-  int? _weatherCode;
-  bool _isDay = true;
+  WeatherData? _weather;
   String? _city;
+  int _timerMinutes = WEATHER_REFRESH_DEFAULT;
   String? _locationKey;
   DateTime? _weatherFetchedAt;
   String? _fetchingKey;
@@ -105,13 +108,21 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     }
     if (_wantWeather && _weatherTimer == null) {
       _fetchWeather();
-      _weatherTimer = Timer.periodic(
-        const Duration(minutes: 45),
-        (_) => _fetchWeather(),
-      );
+      _startWeatherTimer();
     } else if (!_wantWeather && _weatherTimer != null) {
       _stopWeather();
     }
+  }
+
+  /// Periodic refresh at the configured interval. A tick always fetches: the
+  /// cached data is younger than the interval by the request latency.
+  void _startWeatherTimer() {
+    _timerMinutes = context.read<SettingsService>().weatherRefreshMinutes;
+    _weatherTimer?.cancel();
+    _weatherTimer = Timer.periodic(
+      Duration(minutes: _timerMinutes > 0 ? _timerMinutes : WEATHER_REFRESH_DEFAULT),
+      (_) => _fetchWeather(force: true),
+    );
   }
 
   void _stopCpu() {
@@ -158,41 +169,54 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     }
   }
 
-  Future<void> _fetchWeather() async {
+  /// Location and units: a change of any of them needs a new request.
+  String _requestKey(SettingsService settings) =>
+      '${settings.weatherCity}|${settings.weatherLatitude},${settings.weatherLongitude}'
+      '|${settings.weatherFahrenheit}|${settings.weatherWindKmh}';
+
+  Future<void> _fetchWeather({bool force = false}) async {
     if (!mounted) return;
     final settings = context.read<SettingsService>();
-    final key =
-        '${settings.weatherCity}|${settings.weatherLatitude},${settings.weatherLongitude}';
+    final key = _requestKey(settings);
     if (_locationKey != key) {
       _locationKey = key;
       _weatherFetchedAt = null;
-      setState(() => _temperature = null);
+      setState(() => _weather = null);
     }
     if (_fetchingKey == key) return;
-    if (_temperature != null &&
+    if (!force &&
+        _weather != null &&
         _weatherFetchedAt != null &&
         DateTime.now().difference(_weatherFetchedAt!) <
-            const Duration(minutes: 45))
+            Duration(minutes: settings.weatherRefreshMinutes)) {
       return;
+    }
     _fetchingKey = key;
     try {
-      final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
-        'latitude': settings.weatherLatitude.toString(),
-        'longitude': settings.weatherLongitude.toString(),
-        'current': 'temperature_2m,weather_code,is_day',
-      });
+      final fahrenheit = settings.weatherFahrenheit;
+      final windKmh = settings.weatherWindKmh;
+      final uri = Uri.https(
+        'api.open-meteo.com',
+        '/v1/forecast',
+        weatherQuery(
+          latitude: settings.weatherLatitude,
+          longitude: settings.weatherLongitude,
+          fahrenheit: fahrenheit,
+          windKmh: windKmh,
+        ),
+      );
       final response = await (widget.httpClient?.get(uri) ?? http.get(uri))
           .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200)
         throw const HttpException('Weather unavailable');
-      final current =
-          (jsonDecode(response.body) as Map<String, dynamic>)['current']
-              as Map<String, dynamic>;
+      final weather = WeatherData.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+        fahrenheit: fahrenheit,
+        windKmh: windKmh,
+      );
       if (mounted && _locationKey == key) {
         setState(() {
-          _temperature = (current['temperature_2m'] as num).round();
-          _weatherCode = (current['weather_code'] as num).toInt();
-          _isDay = (current['is_day'] as num?)?.toInt() != 0;
+          _weather = weather;
           _city = settings.weatherCity;
           _weatherFetchedAt = DateTime.now();
         });
@@ -200,7 +224,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
         _weatherRetryTimer = null;
       }
     } catch (_) {
-      if (mounted) setState(() => _temperature = null);
+      if (mounted) setState(() => _weather = null);
       // No network at load time: retry soon instead of waiting 45 min.
       if (mounted && _wantWeather) {
         _weatherRetryTimer ??= Timer(const Duration(minutes: 2), () {
@@ -211,19 +235,6 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     } finally {
       if (_fetchingKey == key) _fetchingKey = null;
     }
-  }
-
-  IconData get _weatherIcon {
-    final code = _weatherCode ?? 0;
-    if (code == 0) {
-      return _isDay ? Icons.wb_sunny_outlined : Icons.nightlight_outlined;
-    }
-    if (code <= 3) {
-      return _isDay ? Icons.cloud_outlined : Icons.nights_stay_outlined;
-    }
-    if (code >= 71 && code <= 77) return Icons.ac_unit;
-    if (code >= 95) return Icons.thunderstorm_outlined;
-    return Icons.water_drop_outlined;
   }
 
   @override
@@ -239,8 +250,7 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     final online = context.select<NetworkService, bool>(
       (service) => service.hasInternetAccess,
     );
-    final key =
-        '${settings.weatherCity}|${settings.weatherLatitude},${settings.weatherLongitude}';
+    final key = _requestKey(settings);
     final wantCpu = settings.showCpuInStatusBar && !_cpuUnavailable;
     if (wantCpu != (_cpuTimer != null) ||
         settings.showWeatherInStatusBar != (_weatherTimer != null)) {
@@ -249,27 +259,69 @@ class _HeaderMetricsState extends State<HeaderMetrics>
     if (settings.showWeatherInStatusBar && key != _locationKey) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _fetchWeather());
     }
+    if (_weatherTimer != null &&
+        settings.weatherRefreshMinutes != _timerMinutes) {
+      // New interval: restart the timer only, the data is still fresh.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _weatherTimer != null) _startWeatherTimer();
+      });
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (settings.showWeatherInStatusBar && online && _temperature != null) ...[
-          Icon(
-            _weatherIcon,
-            color: Colors.white,
-            size: HeaderStyle.iconSize,
-            shadows: HeaderStyle.shadows,
-          ),
-          const SizedBox(width: HeaderStyle.iconGap),
-          Text(
-            '${_city ?? settings.weatherCity} $_temperature°',
-            style: HeaderStyle.text,
-          ),
-          const SizedBox(width: HeaderStyle.gap),
-        ],
+        if (settings.showWeatherInStatusBar && online && _weather != null)
+          _buildWeather(context, settings, _weather!),
         if (settings.showCpuInStatusBar && _cpuPercent != null) ...[
           Text('CPU $_cpuPercent%', style: HeaderStyle.text),
           const SizedBox(width: HeaderStyle.gap),
         ],
+      ],
+    );
+  }
+
+  /// Focusable weather element: OK opens the details panel (no new request).
+  Widget _buildWeather(
+    BuildContext context,
+    SettingsService settings,
+    WeatherData weather,
+  ) {
+    final city = _city ?? settings.weatherCity;
+    final parts = <String>[
+      if (settings.weatherShowCity) city,
+      if (settings.weatherShowTemperature) '${weather.temperature.round()}°',
+      if (settings.weatherShowFeelsLike && weather.feelsLike != null)
+        AppLocalizations.of(context)!.weatherFeelsShort(
+          weather.feelsLike!.round().toString(),
+        ),
+    ];
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppBarFocusRing(
+          semanticLabel: city,
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => WeatherDetailsDialog(city: city, data: weather),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (settings.weatherShowIcon) ...[
+                Icon(
+                  weather.icon,
+                  color: Colors.white,
+                  size: HeaderStyle.iconSize,
+                  shadows: HeaderStyle.shadows,
+                ),
+                if (parts.isNotEmpty) const SizedBox(width: HeaderStyle.iconGap),
+              ],
+              if (parts.isNotEmpty)
+                Text(parts.join(' '), style: HeaderStyle.text),
+            ],
+          ),
+        ),
+        // The focus ring adds 6 px on its right: visible gap stays 16 px.
+        const SizedBox(width: HeaderStyle.gap - 6),
       ],
     );
   }
