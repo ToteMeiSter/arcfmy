@@ -4,11 +4,11 @@ import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/widgets/focus_aware_app_bar.dart';
 import 'package:flauncher/widgets/weather_data.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 /// Detailed weather from the data the header already fetched. It makes no
-/// network request. D-pad: up/down scroll, the last down reaches «Close»,
-/// BACK closes (HOME closes it through the root navigator in FLauncher).
+/// network request. Everything fits the screen without scrolling; «Close» is
+/// focused on open. BACK closes (HOME closes it through the root navigator in
+/// FLauncher).
 class WeatherDetailsDialog extends StatefulWidget {
   const WeatherDetailsDialog({
     super.key,
@@ -30,104 +30,101 @@ class WeatherDetailsDialog extends StatefulWidget {
 }
 
 class _WeatherDetailsDialogState extends State<WeatherDetailsDialog> {
-  final _scroll = ScrollController();
-  final _bodyFocus = FocusNode(debugLabel: 'weatherDetailsBody');
-  final _closeFocus = FocusNode(debugLabel: 'weatherDetailsClose');
-
-  @override
-  void dispose() {
-    _scroll.dispose();
-    _bodyFocus.dispose();
-    _closeFocus.dispose();
-    super.dispose();
-  }
-
-  KeyEventResult _onBodyKey(FocusNode _, KeyEvent event) {
-    if (event is KeyUpEvent) return KeyEventResult.ignored;
-    final down = event.logicalKey == LogicalKeyboardKey.arrowDown;
-    final up = event.logicalKey == LogicalKeyboardKey.arrowUp;
-    if (!down && !up) return KeyEventResult.ignored;
-    if (!_scroll.hasClients) {
-      if (down) _closeFocus.requestFocus();
-      return KeyEventResult.handled;
-    }
-    final position = _scroll.position;
-    if (down && position.pixels >= position.maxScrollExtent - 0.5) {
-      _closeFocus.requestFocus();
-    } else {
-      _scroll.animateTo(
-        (position.pixels + (down ? 120 : -120)).clamp(
-          position.minScrollExtent,
-          position.maxScrollExtent,
-        ),
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-      );
-    }
-    return KeyEventResult.handled;
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
     final data = widget.data;
-    return AlertDialog(
-      title: Text(l.weatherDetailsTitle(widget.city)),
-      content: SizedBox(
-        width: 640,
-        child: Focus(
-          focusNode: _bodyFocus,
-          autofocus: true,
-          onKeyEvent: _onBodyKey,
-          child: SingleChildScrollView(
-            controller: _scroll,
-            child: data == null
-                ? Padding(
+    // No scrolling on a TV: the whole panel is scaled down to the screen
+    // (MediaQuery size and text scale) instead of being cut or scrolled.
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: SizedBox(
+            width: _bodyWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.weatherDetailsTitle(widget.city),
+                  style: theme.textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                if (data == null)
+                  Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(l.weatherNoData),
                   )
-                : _Body(
+                else
+                  _Body(
                     data: data,
                     fahrenheit: widget.fahrenheit,
                     windKmh: widget.windKmh,
                   ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    autofocus: true,
+                    onPressed: () => Navigator.pop(context),
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.focused)
+                            ? primary.withValues(alpha: 0.25)
+                            : null,
+                      ),
+                      side: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.focused)
+                            ? BorderSide(color: primary, width: 2)
+                            : null,
+                      ),
+                    ),
+                    child: Text(l.weatherClose),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-      actions: [
-        Focus(
-          canRequestFocus: false,
-          skipTraversal: true,
-          onKeyEvent: (_, event) {
-            if (event is KeyDownEvent &&
-                event.logicalKey == LogicalKeyboardKey.arrowUp) {
-              _bodyFocus.requestFocus();
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-          child: TextButton(
-            focusNode: _closeFocus,
-            onPressed: () => Navigator.pop(context),
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.focused)
-                    ? primary.withValues(alpha: 0.25)
-                    : null,
-              ),
-              side: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.focused)
-                    ? BorderSide(color: primary, width: 2)
-                    : null,
-              ),
-            ),
-            child: Text(l.weatherClose),
-          ),
-        ),
-      ],
     );
   }
+}
+
+/// Width of the content: 8 hourly columns of [_columnWidth].
+const double _columnWidth = 84;
+const double _bodyWidth = _columnWidth * 8;
+
+/// One forecast column: label (hour or date), icon, then text lines. Hours
+/// and days are both built from it.
+class _ForecastColumn extends StatelessWidget {
+  const _ForecastColumn({
+    required this.label,
+    required this.icon,
+    required this.lines,
+  });
+
+  final String label;
+  final IconData icon;
+  final List<Widget> lines;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: _columnWidth,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Icon(icon, size: HeaderStyle.iconSize),
+        ...lines,
+      ],
+    ),
+  );
 }
 
 class _Body extends StatelessWidget {
@@ -143,6 +140,10 @@ class _Body extends StatelessWidget {
 
   double _convert(double celsius) =>
       fahrenheit ? celsiusToFahrenheit(celsius) : celsius;
+
+  /// DD.MM with a leading zero, independent of the locale.
+  String _shortDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}';
 
   String _temp(double value) => '${_convert(value).round()}°';
 
@@ -253,23 +254,20 @@ class _Body extends StatelessWidget {
           l.weatherHourly,
           data.hourly.isEmpty
               ? Text(l.weatherNoData)
-              : Wrap(
+              : Row(
                   children: [
                     for (final h in data.hourly)
-                      SizedBox(
-                        width: 76,
-                        child: Column(
-                          children: [
-                            Text(time(h.time), style: theme.bodySmall),
-                            Icon(weatherIconFor(h.code, h.isDay), size: HeaderStyle.iconSize),
-                            Text(_temp(h.temperature)),
-                            if (h.precipitationProbability != null)
-                              Text(
-                                '${h.precipitationProbability}%',
-                                style: theme.bodySmall,
-                              ),
-                          ],
-                        ),
+                      _ForecastColumn(
+                        label: time(h.time),
+                        icon: weatherIconFor(h.code, h.isDay),
+                        lines: [
+                          Text(_temp(h.temperature)),
+                          if (h.precipitationProbability != null)
+                            Text(
+                              '${h.precipitationProbability}%',
+                              style: theme.bodySmall,
+                            ),
+                        ],
                       ),
                   ],
                 ),
@@ -278,30 +276,20 @@ class _Body extends StatelessWidget {
           l.weatherDaily,
           data.daily.isEmpty
               ? Text(l.weatherNoData)
-              : Column(
+              : Row(
                   children: [
                     for (final d in data.daily)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 120,
-                              child: Text(material.formatShortMonthDay(d.date)),
+                      _ForecastColumn(
+                        label: _shortDate(d.date),
+                        icon: weatherIconFor(d.code, true),
+                        lines: [
+                          Text('${_temp(d.min)} … ${_temp(d.max)}'),
+                          if (d.precipitationProbability != null)
+                            Text(
+                              '${d.precipitationProbability}%',
+                              style: theme.bodySmall,
                             ),
-                            Icon(weatherIconFor(d.code, true), size: HeaderStyle.iconSize),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              width: 120,
-                              child: Text('${_temp(d.min)} … ${_temp(d.max)}'),
-                            ),
-                            if (d.precipitationProbability != null)
-                              Text(
-                                '${d.precipitationProbability}%',
-                                style: theme.bodySmall,
-                              ),
-                          ],
-                        ),
+                        ],
                       ),
                   ],
                 ),
