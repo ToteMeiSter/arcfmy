@@ -112,29 +112,6 @@ build:appbundle:release:github:
     paths:
       - build/app/outputs/bundle/githubRelease/app-github-release.aab
 
-build:appbundle:release:play:
-  image: $FLUTTER_DOCKER_IMAGE
-  stage: build
-  needs: [ ]
-  only:
-    - master
-    - main
-    - tags
-  before_script:
-    - echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-    - |
-      test -n "${SIGNING_JKS_FILE_BASE64:-}" || { echo "SIGNING_JKS_FILE_BASE64 is empty or unset"; exit 1; }
-      test -n "${SIGNING_KEYSTORE_PASSWORD:-}" || { echo "SIGNING_KEYSTORE_PASSWORD is empty or unset (check GitLab variable + Protected / branch)"; exit 1; }
-      test -n "${SIGNING_KEY_ALIAS:-}" || { echo "SIGNING_KEY_ALIAS is empty or unset"; exit 1; }
-      test -n "${SIGNING_KEY_PASSWORD:-}" || { echo "SIGNING_KEY_PASSWORD is empty or unset"; exit 1; }
-      echo -n "$SIGNING_JKS_FILE_BASE64" | base64 -d > android/app/upload-keystore.jks
-    - if [ -n "$CI_COMMIT_TAG" ]; then BUILD_NAME=$CI_COMMIT_TAG; else BUILD_NAME=$CI_COMMIT_SHORT_SHA; fi
-  script:
-    - flutter build appbundle --release --flavor play --dart-define=USE_NATIVE_MEDIA_PICKER=true --build-number=$CI_PIPELINE_IID --build-name=$BUILD_NAME
-  artifacts:
-    paths:
-      - build/app/outputs/bundle/playRelease/app-play-release.aab
-
 build:apk:
   image: eclipse-temurin:17-jdk-jammy
   stage: transform
@@ -175,47 +152,6 @@ deploy:gitlab-release:
     - tags
   script:
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file app-release.apk "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${GITLAB_GENERIC_PACKAGE_NAME}/$CI_COMMIT_TAG/${RELEASE_APK_FILENAME_PREFIX}-$CI_COMMIT_TAG.apk"'
-
-deploy:play-store:
-  stage: deploy
-  when: manual
-  needs:
-    - job: commitlint
-      optional: true
-    - job: stylelint
-      optional: true
-    - job: analyze
-      optional: true
-    - job: test
-      optional: true
-    - build:appbundle:release:play
-  image: ruby:2.6.3
-  only:
-    - tags
-  before_script:
-    - echo "$GOOGLE_PLAY_API_KEY" > android/fastlane/google_play_api_key.json
-    - export LC_ALL=en_US.UTF-8
-    - export LANG=en_US.UTF-8
-    - gem install fastlane -NV
-    - cd android
-  script:
-    - fastlane deploy
-
-promote:play-store:
-  stage: promote
-  needs: [ "deploy:play-store" ]
-  image: ruby:2.6.3
-  when: manual
-  only:
-    - tags
-  before_script:
-    - echo "$GOOGLE_PLAY_API_KEY" > android/fastlane/google_play_api_key.json
-    - export LC_ALL=en_US.UTF-8
-    - export LANG=en_US.UTF-8
-    - gem install fastlane -NV
-    - cd android
-  script:
-    - fastlane promote
 
 promote:gitlab-release:
   stage: promote
