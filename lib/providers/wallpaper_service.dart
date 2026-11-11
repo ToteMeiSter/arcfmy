@@ -384,6 +384,13 @@ class WallpaperService extends ChangeNotifier {
   }
 
   Future<void> pickWallpaperFromUri(String sourceUri) async {
+    if (sourceUri.startsWith('file://')) {
+      final file = File(Uri.parse(sourceUri).toFilePath());
+      if (await file.exists()) {
+        await pickWallpaper(file);
+        return;
+      }
+    }
     await _saveImageBytes(
       await _channel.loadContentUriImage(sourceUri),
       _wallpaperFile,
@@ -395,6 +402,13 @@ class WallpaperService extends ChangeNotifier {
   }
 
   Future<void> pickWallpaperDayFromUri(String sourceUri) async {
+    if (sourceUri.startsWith('file://')) {
+      final file = File(Uri.parse(sourceUri).toFilePath());
+      if (await file.exists()) {
+        await pickWallpaperDay(file);
+        return;
+      }
+    }
     await _saveImageBytes(
       await _channel.loadContentUriImage(sourceUri),
       _wallpaperDayFile,
@@ -406,6 +420,13 @@ class WallpaperService extends ChangeNotifier {
   }
 
   Future<void> pickWallpaperNightFromUri(String sourceUri) async {
+    if (sourceUri.startsWith('file://')) {
+      final file = File(Uri.parse(sourceUri).toFilePath());
+      if (await file.exists()) {
+        await pickWallpaperNight(file);
+        return;
+      }
+    }
     await _saveImageBytes(
       await _channel.loadContentUriImage(sourceUri),
       _wallpaperNightFile,
