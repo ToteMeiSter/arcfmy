@@ -36,25 +36,29 @@ class _WeatherDetailsDialogState extends State<WeatherDetailsDialog> {
     final primary = Theme.of(context).colorScheme.primary;
     final theme = Theme.of(context);
     final data = widget.data;
+    final bodyWidth = _bodyWidth(data);
+    // The panel starts below the header bar (status bar + toolbar), so it
+    // never covers the header.
+    final top = MediaQuery.paddingOf(context).top + kToolbarHeight + 8;
     // No scrolling on a TV: the whole panel is scaled down to the screen
     // (MediaQuery size and text scale) instead of being cut or scrolled.
     return Dialog(
-      insetPadding: const EdgeInsets.all(16),
+      insetPadding: EdgeInsets.fromLTRB(12, top, 12, 12),
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(14),
           child: SizedBox(
-            width: _bodyWidth,
+            width: bodyWidth,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   l.weatherDetailsTitle(widget.city),
-                  style: theme.textTheme.titleLarge,
+                  style: theme.textTheme.titleMedium,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 if (data == null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -65,8 +69,9 @@ class _WeatherDetailsDialogState extends State<WeatherDetailsDialog> {
                     data: data,
                     fahrenheit: widget.fahrenheit,
                     windKmh: widget.windKmh,
+                    width: bodyWidth,
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -96,9 +101,16 @@ class _WeatherDetailsDialogState extends State<WeatherDetailsDialog> {
   }
 }
 
-/// Width of the content: 8 hourly columns of [_columnWidth].
-const double _columnWidth = 84;
-const double _bodyWidth = _columnWidth * 8;
+/// One width for every forecast column (hours and days). The content is as
+/// wide as the longer of the two rows, so there is no empty strip on the right.
+const double _columnWidth = 66;
+
+double _bodyWidth(WeatherData? data) {
+  final slots = data == null
+      ? 6
+      : math.max(6, math.max(data.hourly.length, data.daily.length));
+  return _columnWidth * slots;
+}
 
 /// One forecast column: label (hour or date), icon, then text lines. Hours
 /// and days are both built from it.
@@ -121,7 +133,12 @@ class _ForecastColumn extends StatelessWidget {
       children: [
         Text(label, style: Theme.of(context).textTheme.bodySmall),
         Icon(icon, size: HeaderStyle.iconSize),
-        ...lines,
+        ...lines.map(
+          (w) => DefaultTextStyle.merge(
+            style: Theme.of(context).textTheme.bodySmall,
+            child: w,
+          ),
+        ),
       ],
     ),
   );
@@ -132,8 +149,10 @@ class _Body extends StatelessWidget {
     required this.data,
     required this.fahrenheit,
     required this.windKmh,
+    required this.width,
   });
 
+  final double width;
   final WeatherData data;
   final bool fahrenheit;
   final bool windKmh;
@@ -162,9 +181,9 @@ class _Body extends StatelessWidget {
     );
 
     Widget fact(String label, String value, {Widget? lead}) => SizedBox(
-      width: 190,
+      width: width / 3,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -173,7 +192,7 @@ class _Body extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (lead != null) ...[lead, const SizedBox(width: 4)],
-                Flexible(child: Text(value, style: theme.bodyLarge)),
+                Flexible(child: Text(value, style: theme.bodyMedium)),
               ],
             ),
           ],
@@ -194,7 +213,7 @@ class _Body extends StatelessWidget {
               // Open-Meteo gives the direction the wind comes FROM.
               : Transform.rotate(
                   angle: (data.windDirection! + 180) * math.pi / 180,
-                  child: const Icon(Icons.arrow_upward, size: 18),
+                  child: const Icon(Icons.arrow_upward, size: 14),
                 ),
         ),
       if (data.pressure != null)
@@ -217,12 +236,12 @@ class _Body extends StatelessWidget {
     ];
 
     Widget section(String title, Widget child) => Padding(
-      padding: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.only(top: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: theme.titleSmall),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           child,
         ],
       ),
@@ -233,11 +252,11 @@ class _Body extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(data.icon, size: 48, color: Colors.white),
-            const SizedBox(width: 12),
-            Text('${_convert(data.temperature).round()}$tempUnit', style: theme.headlineMedium),
+            Icon(data.icon, size: 32, color: Colors.white),
+            const SizedBox(width: 8),
+            Text('${_convert(data.temperature).round()}$tempUnit', style: theme.headlineSmall),
             if (data.feelsLike != null) ...[
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Text(
                 l.weatherFeelsShort(_convert(data.feelsLike!).round().toString()),
                 style: theme.bodyMedium,
@@ -245,7 +264,7 @@ class _Body extends StatelessWidget {
             ],
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         if (facts.isEmpty)
           Text(l.weatherNoData)
         else
