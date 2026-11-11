@@ -1098,6 +1098,8 @@ class _HeroBackdropBaker extends ChangeNotifier {
           fit: BoxFit.cover,
           filterQuality: FilterQuality.low,
         );
+        // Blur the scrimmed hero (what is actually on screen), otherwise the blur looks much brighter.
+        const _CinematicScrimPainter().paint(dockCanvas, blurRect.size);
         dockCanvas.restore();
         final dockPicture = dockRecorder.endRecording();
         final dockImage = dockPicture.toImageSync(pxWidth, pxHeight);
@@ -1120,6 +1122,7 @@ class _HeroBackdropBaker extends ChangeNotifier {
           fit: BoxFit.cover,
           filterQuality: FilterQuality.low,
         );
+        const _CinematicScrimPainter().paint(gridCanvas, blurRect.size);
         gridCanvas.restore();
         final gridPicture = gridRecorder.endRecording();
         final gridImage = gridPicture.toImageSync(pxWidth, pxHeight);
