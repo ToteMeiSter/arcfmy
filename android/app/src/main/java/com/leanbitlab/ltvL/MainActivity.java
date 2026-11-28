@@ -481,7 +481,7 @@ public class MainActivity extends FlutterActivity {
                 return R.drawable.ic_tvinput_av;
             case TvInputInfo.TYPE_COMPONENT:
                 return R.drawable.ic_tvinput_component;
-            case TvInputInfo.TYPE_DISPLAYPORT:
+            case 11: // TvInputInfo.TYPE_DISPLAYPORT (constant exists since API 33)
                 return R.drawable.ic_tvinput_displayport;
             default:
                 return R.drawable.ic_tvinput_fallback;
