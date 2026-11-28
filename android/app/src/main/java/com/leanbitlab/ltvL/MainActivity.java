@@ -467,14 +467,41 @@ public class MainActivity extends FlutterActivity {
         return map;
     }
 
-    // For a TV-input pseudo-app, icons and banners come from the package that owns the input service.
-    private String iconPackage(String packageName) {
-        TvInputInfo input = findTvInput(packageName);
-        return input == null ? packageName : input.getServiceInfo().packageName;
+    // tvinput tiles get our own glyph by input type instead of the vendor input-service icon.
+    private int tvInputIconRes(TvInputInfo input) {
+        if (input == null) {
+            return R.drawable.ic_tvinput_fallback;
+        }
+        switch (input.getType()) {
+            case TvInputInfo.TYPE_HDMI:
+                return R.drawable.ic_tvinput_hdmi;
+            case TvInputInfo.TYPE_TUNER:
+                return R.drawable.ic_tvinput_antenna;
+            case TvInputInfo.TYPE_COMPOSITE:
+                return R.drawable.ic_tvinput_av;
+            case TvInputInfo.TYPE_COMPONENT:
+                return R.drawable.ic_tvinput_component;
+            case TvInputInfo.TYPE_DISPLAYPORT:
+                return R.drawable.ic_tvinput_displayport;
+            default:
+                return R.drawable.ic_tvinput_fallback;
+        }
+    }
+
+    // Icon overrides by package name: data, not logic — one line per package.
+    private static final Map<String, Integer> ICON_PACKAGE_OVERRIDES = Map.of(
+            "mediatek.factorymenu.ui", R.drawable.ic_factory_menu);
+
+    private byte[] bundledIconBytes(int resId) {
+        Drawable drawable = getDrawable(resId);
+        return drawable == null ? new byte[0] : drawableToByteArray(drawable);
     }
 
     private byte[] getApplicationBanner(String packageName) {
-        packageName = iconPackage(packageName);
+        if (packageName.startsWith(TV_INPUT_PREFIX)) {
+            // No banner for tvinput tiles: AppCard falls back to the glyph icon.
+            return new byte[0];
+        }
         byte[] imageBytes = new byte[0];
 
         PackageManager packageManager = getPackageManager();
@@ -498,7 +525,13 @@ public class MainActivity extends FlutterActivity {
     }
 
     private byte[] getApplicationIcon(String packageName) {
-        packageName = iconPackage(packageName);
+        if (packageName.startsWith(TV_INPUT_PREFIX)) {
+            return bundledIconBytes(tvInputIconRes(findTvInput(packageName)));
+        }
+        Integer overrideRes = ICON_PACKAGE_OVERRIDES.get(packageName);
+        if (overrideRes != null) {
+            return bundledIconBytes(overrideRes);
+        }
         byte[] imageBytes = new byte[0];
 
         PackageManager packageManager = getPackageManager();
