@@ -1,5 +1,6 @@
 import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/models/app.dart';
+import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/models/watch_next_item.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
@@ -23,7 +24,7 @@ class _CaptionAppsService extends TestAppsService {
     if (name == null) {
       return null;
     }
-    return fakeApp(packageName: packageName, name: name);
+    return fakeApp(packageName: packageName!, name: name);
   }
 }
 
@@ -50,7 +51,7 @@ void main() {
         providers: [
           ChangeNotifierProvider<SettingsService>.value(value: settings),
           ChangeNotifierProvider<WatchNextService>.value(value: service),
-          ChangeNotifierProvider<_CaptionAppsService>.value(value: apps),
+          ChangeNotifierProvider<AppsService>.value(value: apps),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -61,9 +62,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Netflix'), findsOneWidget);
-    final context = tester.element(find.text('Netflix'));
+    // Both caption branches of the card render (poster fallback + labels overlay).
+    expect(find.text('Netflix'), findsNWidgets(2));
+    final context = tester.element(find.text('Netflix').first);
     final fallbackTitle = AppLocalizations.of(context)!.watchNextSectionTitle;
-    expect(find.text(fallbackTitle), findsOneWidget);
+    // Two captions of the card without a known app, one per caption branch.
+    expect(find.text(fallbackTitle), findsNWidgets(2));
   });
 }
