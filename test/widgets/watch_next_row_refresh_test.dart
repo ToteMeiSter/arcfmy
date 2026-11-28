@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/models/watch_next_item.dart';
+import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
 import 'package:flauncher/widgets/watch_next_row.dart';
@@ -45,7 +46,7 @@ void main() {
         providers: [
           ChangeNotifierProvider<SettingsService>.value(value: settings),
           ChangeNotifierProvider<WatchNextService>.value(value: service),
-          ChangeNotifierProvider<TestAppsService>(create: (_) => TestAppsService()),
+          ChangeNotifierProvider<AppsService>.value(value: TestAppsService()),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
