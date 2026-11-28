@@ -1,3 +1,4 @@
+import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/providers/network_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flutter/material.dart';
@@ -13,22 +14,27 @@ class DailyWifiUsageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer2<NetworkService, SettingsService>(
       builder: (context, networkService, settingsService, _) {
+        final localizations = AppLocalizations.of(context)!;
+
         if (!networkService.hasUsageStatsPermission) {
           return AppBarFocusRing(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             onPressed: () => networkService.requestPermission(),
-            semanticLabel: 'Grant usage access',
-            child: const Row(
+            semanticLabel: localizations.dailyWifiUsageGrantAccessSemantics,
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
+                const Icon(
                   Icons.data_usage,
                   size: HeaderStyle.iconSize,
                   color: Colors.white,
                   shadows: HeaderStyle.shadows,
                 ),
-                SizedBox(width: HeaderStyle.iconGap),
-                Text("Grant Usage Permission", style: HeaderStyle.text),
+                const SizedBox(width: HeaderStyle.iconGap),
+                Text(
+                  localizations.dailyWifiUsageGrantAccess,
+                  style: HeaderStyle.text,
+                ),
               ],
             ),
           );
@@ -38,14 +44,14 @@ class DailyWifiUsageWidget extends StatelessWidget {
         String label;
         switch (period) {
           case 'weekly':
-            label = 'Weekly: ';
+            label = localizations.dailyWifiUsageLabelWeekly;
             break;
           case 'monthly':
-            label = 'Monthly: ';
+            label = localizations.dailyWifiUsageLabelMonthly;
             break;
           case 'daily':
           default:
-            label = 'Daily: ';
+            label = localizations.dailyWifiUsageLabelDaily;
             break;
         }
 

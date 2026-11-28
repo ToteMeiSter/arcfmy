@@ -448,6 +448,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get grantPermission => 'Conceder permiso';
 
   @override
+  String get dailyWifiUsageGrantAccess => 'Acceso a estadísticas';
+
+  @override
+  String get dailyWifiUsageGrantAccessSemantics => 'Permitir acceso a estadísticas';
+
+  @override
+  String get dailyWifiUsageLabelDaily => 'Diario: ';
+
+  @override
+  String get dailyWifiUsageLabelWeekly => 'Semanal: ';
+
+  @override
+  String get dailyWifiUsageLabelMonthly => 'Mensual: ';
+
+  @override
   String get checkStatus => 'Comprobar estado';
 
   @override

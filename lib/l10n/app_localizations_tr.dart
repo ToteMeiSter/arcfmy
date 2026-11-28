@@ -445,6 +445,21 @@ class AppLocalizationsTr extends AppLocalizations {
   String get grantPermission => 'İzin ver';
 
   @override
+  String get dailyWifiUsageGrantAccess => 'İstatistik erişimi';
+
+  @override
+  String get dailyWifiUsageGrantAccessSemantics => 'İstatistik erişimine izin ver';
+
+  @override
+  String get dailyWifiUsageLabelDaily => 'Günlük: ';
+
+  @override
+  String get dailyWifiUsageLabelWeekly => 'Haftalık: ';
+
+  @override
+  String get dailyWifiUsageLabelMonthly => 'Aylık: ';
+
+  @override
   String get checkStatus => 'Durumu denetle';
 
   @override
