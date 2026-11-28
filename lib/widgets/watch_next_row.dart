@@ -18,6 +18,7 @@
 
 import 'package:flauncher/models/watch_next_item.dart';
 import 'package:flauncher/actions.dart';
+import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
 import 'package:flauncher/widgets/app_card.dart';
@@ -391,6 +392,13 @@ class _WatchNextCardState extends State<_WatchNextCard> {
     }
   }
 
+  // Card caption: source app name; falls back to the section title when the package is unknown.
+  String _sourceCaption(AppLocalizations localizations) {
+    final appsService = context.read<AppsService>();
+    final app = appsService.getApplication(widget.item.packageName);
+    return app?.name ?? localizations.watchNextSectionTitle;
+  }
+
   void _handleTap() {
     _triggerLaunchWithFeedback();
   }
@@ -571,7 +579,7 @@ class _WatchNextCardState extends State<_WatchNextCard> {
               ),
               const SizedBox(height: 2),
               Text(
-                localizations.watchNextSectionTitle,
+                _sourceCaption(localizations),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -618,7 +626,7 @@ class _WatchNextCardState extends State<_WatchNextCard> {
           ),
           const SizedBox(height: 2),
           Text(
-            localizations.watchNextSectionTitle,
+            _sourceCaption(localizations),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
