@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/providers/launcher_state.dart';
 import 'package:flauncher/providers/network_service.dart';
