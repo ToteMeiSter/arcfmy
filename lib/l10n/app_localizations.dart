@@ -922,6 +922,21 @@ abstract class AppLocalizations {
   /// **'Grant Permission'**
   String get grantPermission;
 
+  /// No description provided for @dailyWifiUsageGrantAccess.
+  String get dailyWifiUsageGrantAccess;
+
+  /// No description provided for @dailyWifiUsageGrantAccessSemantics.
+  String get dailyWifiUsageGrantAccessSemantics;
+
+  /// No description provided for @dailyWifiUsageLabelDaily.
+  String get dailyWifiUsageLabelDaily;
+
+  /// No description provided for @dailyWifiUsageLabelWeekly.
+  String get dailyWifiUsageLabelWeekly;
+
+  /// No description provided for @dailyWifiUsageLabelMonthly.
+  String get dailyWifiUsageLabelMonthly;
+
   /// No description provided for @checkStatus.
   ///
   /// In en, this message translates to:

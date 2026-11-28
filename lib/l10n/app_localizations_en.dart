@@ -443,6 +443,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get grantPermission => 'Grant Permission';
 
   @override
+  String get dailyWifiUsageGrantAccess => 'Usage Access';
+
+  @override
+  String get dailyWifiUsageGrantAccessSemantics => 'Grant usage access';
+
+  @override
+  String get dailyWifiUsageLabelDaily => 'Daily: ';
+
+  @override
+  String get dailyWifiUsageLabelWeekly => 'Weekly: ';
+
+  @override
+  String get dailyWifiUsageLabelMonthly => 'Monthly: ';
+
+  @override
   String get checkStatus => 'Check Status';
 
   @override

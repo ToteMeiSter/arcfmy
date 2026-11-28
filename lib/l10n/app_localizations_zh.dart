@@ -438,6 +438,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get grantPermission => '授予权限';
 
   @override
+  String get dailyWifiUsageGrantAccess => '使用统计权限';
+
+  @override
+  String get dailyWifiUsageGrantAccessSemantics => '授予使用统计权限';
+
+  @override
+  String get dailyWifiUsageLabelDaily => '每天：';
+
+  @override
+  String get dailyWifiUsageLabelWeekly => '每周：';
+
+  @override
+  String get dailyWifiUsageLabelMonthly => '每月：';
+
+  @override
   String get checkStatus => '检查状态';
 
   @override

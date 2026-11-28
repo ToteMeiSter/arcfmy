@@ -443,6 +443,21 @@ class AppLocalizationsRu extends AppLocalizations {
   String get grantPermission => 'Grant Permission';
 
   @override
+  String get dailyWifiUsageGrantAccess => 'Доступ к статистике';
+
+  @override
+  String get dailyWifiUsageGrantAccessSemantics => 'Разрешить доступ к статистике';
+
+  @override
+  String get dailyWifiUsageLabelDaily => 'За день: ';
+
+  @override
+  String get dailyWifiUsageLabelWeekly => 'За неделю: ';
+
+  @override
+  String get dailyWifiUsageLabelMonthly => 'За месяц: ';
+
+  @override
   String get checkStatus => 'Check Status';
 
   @override

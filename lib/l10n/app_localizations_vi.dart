@@ -445,6 +445,21 @@ class AppLocalizationsVi extends AppLocalizations {
   String get grantPermission => 'Cấp quyền';
 
   @override
+  String get dailyWifiUsageGrantAccess => 'Quyền thống kê';
+
+  @override
+  String get dailyWifiUsageGrantAccessSemantics => 'Cấp quyền xem thống kê';
+
+  @override
+  String get dailyWifiUsageLabelDaily => 'Hàng ngày: ';
+
+  @override
+  String get dailyWifiUsageLabelWeekly => 'Hàng tuần: ';
+
+  @override
+  String get dailyWifiUsageLabelMonthly => 'Hàng tháng: ';
+
+  @override
   String get checkStatus => 'Kiểm tra trạng thái';
 
   @override

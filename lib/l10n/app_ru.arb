@@ -33,5 +33,10 @@
     "weatherHourly": "Ближайшие часы",
     "weatherDaily": "Ближайшие дни",
     "weatherNoData": "Нет данных о погоде",
-    "weatherClose": "Закрыть"
+    "weatherClose": "Закрыть",
+    "dailyWifiUsageGrantAccess": "Доступ к статистике",
+    "dailyWifiUsageGrantAccessSemantics": "Разрешить доступ к статистике",
+    "dailyWifiUsageLabelDaily": "За день: ",
+    "dailyWifiUsageLabelWeekly": "За неделю: ",
+    "dailyWifiUsageLabelMonthly": "За месяц: "
 }
